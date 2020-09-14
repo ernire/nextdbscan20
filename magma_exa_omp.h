@@ -119,6 +119,9 @@ namespace exa {
 //                if (v_t_min[t])
 //            }
         }
+        for (auto const &v : v_t_min) {
+
+        }
 //        T min = v_t_min[0];
 //        T max = v_t_max[0];
 
