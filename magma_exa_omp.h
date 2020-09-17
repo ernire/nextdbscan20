@@ -27,7 +27,7 @@ namespace exa {
         assert(begin <= end);
 #endif
         #pragma omp parallel for
-        for (std::size_t i = begin; i < end - begin; ++i) {
+        for (std::size_t i = begin; i < end; ++i) {
             v[i] = val;
         }
 #ifdef EXT_DEBUG_ON
@@ -44,8 +44,8 @@ namespace exa {
 #ifdef DEBUG_ON
         assert(begin <= end);
 #endif
-#pragma omp parallel for
-        for (std::size_t i = begin; i < end - begin; ++i) {
+        #pragma omp parallel for
+        for (std::size_t i = begin; i < end; ++i) {
             v[i] = startval + i - begin;
         }
     }
@@ -137,8 +137,9 @@ namespace exa {
         assert(begin <= end);
 #endif
         #pragma omp parallel for
-        for (std::size_t i = begin; i < end - begin; ++i) {
-            functor(static_cast<T>(i));
+        for (std::size_t i = begin; i < end; ++i) {
+//            functor(static_cast<T>(i));
+            functor(i);
         }
     }
 
@@ -188,13 +189,12 @@ namespace exa {
 #endif
         T sum = startval;
         #pragma omp parallel for reduction(+: sum)
-        for (std::size_t i = begin; i < end - begin; ++i) {
+        for (std::size_t i = begin; i < end; ++i) {
             sum += v[i];
         }
         return sum;
     }
 
-    //TODO
     template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
     void sort(s_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) noexcept {
 #ifdef DEBUG_ON
