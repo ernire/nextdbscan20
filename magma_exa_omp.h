@@ -201,11 +201,80 @@ namespace exa {
         assert(begin <= end);
         assert((end - begin) <= (v.size() - begin));
 #endif
-        if (end - begin < 10000) {
+        // TODO improve heuristic
+        if (end - begin < 100000) {
             std::sort(std::next(v.begin(), begin), std::next(v.begin(), end), functor);
             return;
         }
-        std::sort(std::next(v.begin(), begin), std::next(v.begin(), end), functor);
+        s_vec<T> v_tmp(v.size(), -1);
+        s_vec<T> v_samples;
+        s_vec<int> v_bucket_size;
+        s_vec<int> v_bucket_offset;
+        s_vec<int> v_par_bucket_size;
+        s_vec<int> v_par_bucket_offset;
+        // optimize to only use needed space
+        s_vec<int> v_bucket_index(v.size());
+        int n_thread = 0, n_bucket = 0;
+        #pragma omp parallel
+        {
+            #pragma omp single
+            {
+                n_thread = omp_get_num_threads();
+                int n_samples = n_thread * log10f(v.size());
+                v_samples.reserve(n_samples);
+                for (int i = 0; i < n_samples; ++i) {
+                    v_samples.push_back(v[((v.size() - 1) / n_samples) * i]);
+                }
+//                std::cout << "sample size: " << n_samples << std::endl;
+                std::sort(v_samples.begin(), v_samples.end(), functor);
+                n_bucket = v_samples.size() + 1;
+                v_bucket_size.resize(n_bucket, 0);
+                v_bucket_offset.resize(n_bucket);
+                v_par_bucket_size.resize(n_bucket * n_thread, -1);
+                v_par_bucket_offset.resize(n_bucket * n_thread);
+            }
+            s_vec<int> v_t_size(n_bucket, 0);
+            s_vec<int> v_t_offset(n_bucket);
+            int tid = omp_get_thread_num();
+            int t_size = magma_util::get_block_size(tid, end - begin, n_thread);
+            int t_offset = magma_util::get_block_offset(tid, end - begin, n_thread);
+            for (std::size_t i = t_offset; i < t_offset + t_size; ++i) {
+                v_bucket_index[i + begin] = std::lower_bound(v_samples.begin(), v_samples.end(), v[i + begin], functor)
+                        - v_samples.begin();
+                ++v_t_size[v_bucket_index[i + begin]];
+            }
+            for (int i = 0; i < n_bucket; ++i) {
+                v_par_bucket_size[(i * n_thread) + tid] = v_t_size[i];
+            }
+            #pragma omp barrier
+            for (int i = 0; i < v_bucket_size.size(); ++i) {
+                #pragma omp atomic
+                v_bucket_size[i] += v_t_size[i];
+            }
+            #pragma omp barrier
+            #pragma omp single
+            {
+//                magma_util::print_vector("bucket sizes: ", v_bucket_size);
+                exclusive_scan(v_par_bucket_size, v_par_bucket_offset, 0, v_par_bucket_size.size(), 0, 0);
+                exclusive_scan(v_bucket_size, v_bucket_offset, 0, v_bucket_size.size(), 0, 0);
+            }
+            for (int i = 0; i < n_bucket; ++i) {
+                v_t_offset[i] = v_par_bucket_offset[i * n_thread + tid];
+            }
+            auto v_t_offset_cpy = v_t_offset;
+            for (std::size_t i = t_offset; i < t_offset + t_size; ++i) {
+                v_tmp[v_t_offset[v_bucket_index[i + begin]] + begin] = v[i + begin];
+                ++v_t_offset[v_bucket_index[i + begin]];
+            }
+            #pragma omp barrier
+            #pragma omp for schedule(dynamic)
+            for (int i = 0; i < v_bucket_size.size(); ++i) {
+                std::sort(std::next(v_tmp.begin(), v_bucket_offset[i]), std::next(v_tmp.begin(),
+                        v_bucket_offset[i] + v_bucket_size[i]), functor);
+            }
+        }
+        v.clear();
+        v.insert(v.end(), std::make_move_iterator(v_tmp.begin()), std::make_move_iterator(v_tmp.end()));
     }
 
     template <typename T1, typename T2, typename F, typename std::enable_if<std::is_arithmetic<T1>::value>::type* = nullptr>
