@@ -83,7 +83,7 @@ namespace exa {
             #pragma omp single
             {
                 v_t_offset = v_t_size;
-                v_t_offset[0] = 0;
+                v_t_offset[0] = init;
                 for (int i = 1; i < v_t_offset.size(); ++i) {
                     v_t_offset[i] = v_t_offset[i - 1] + v_t_size[i - 1];
                 }

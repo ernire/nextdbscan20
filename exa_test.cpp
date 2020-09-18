@@ -126,7 +126,11 @@ TEST(exa, for_each) {
 }
 
 TEST(exa, exclusive_scan) {
-
+    s_vec<int> v_input(1000, 1);
+    s_vec<int> v_output(1000);
+    exa::exclusive_scan(v_input, v_output, 0, v_input.size(), 0, 100);
+    EXPECT_EQ(v_output[0], 100);
+    EXPECT_EQ(v_output[v_output.size()-1], 1099);
 }
 
 TEST(exa, min_max_element) {
