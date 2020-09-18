@@ -117,13 +117,32 @@ TEST(exa, reduce) {
 }
 
 TEST(exa, for_each) {
-    s_vec<int> v_test(1000, 0);
+    s_vec<int> v_test(10, 0);
     exa::for_each(v_test, 0, v_test.size(), [](auto &val) -> void {
         val = 1;
     });
     auto sum = exa::reduce(v_test, 0, v_test.size(), 0);
-    EXPECT_EQ(sum, 1000);
+    EXPECT_EQ(sum, v_test.size());
+}
 
+TEST(exa, exclusive_scan) {
+
+}
+
+TEST(exa, min_max_element) {
+    s_vec<int> v_input(1000, 1);
+    v_input[33] = -100;
+    v_input[777] = 100;
+    auto pair = exa::minmax_element(v_input, 0, v_input.size(), [&](auto const v1, auto const v2) -> bool {
+        return v1 < v2;
+    });
+    EXPECT_EQ(pair.first, -100);
+    EXPECT_EQ(pair.second, 100);
+    pair = exa::minmax_element(v_input, 50, v_input.size(), [&](auto const v1, auto const v2) -> bool {
+        return v1 < v2;
+    });
+    EXPECT_EQ(pair.first, 1);
+    EXPECT_EQ(pair.second, 100);
 }
 
 int main(int argc, char **argv) {

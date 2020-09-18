@@ -30,13 +30,6 @@ namespace exa {
         for (std::size_t i = begin; i < end; ++i) {
             v[i] = val;
         }
-#ifdef EXT_DEBUG_ON
-        auto v_copy = v;
-        std::fill(std::next(v.begin(), begin), std::next(v.begin(), end), val);
-        for (int i = begin; i < end - begin; ++i) {
-            assert(v[i] == v_copy[i]);
-        }
-#endif
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
@@ -138,8 +131,7 @@ namespace exa {
 #endif
         #pragma omp parallel for
         for (std::size_t i = begin; i < end; ++i) {
-//            functor(static_cast<T>(i));
-            functor(i);
+            functor(v[i]);
         }
     }
 
@@ -153,15 +145,14 @@ namespace exa {
         #pragma omp parallel
         {
             int tid = omp_get_thread_num();
-            T min_t = 0;
-            T max_t = 0;
+            T min_t = begin;
+            T max_t = begin;
             #pragma omp single
             {
                 v_t_min_max.resize(omp_get_num_threads()*2, 0);
             }
             #pragma omp for
-            // TODO use begin and end
-            for (int i = 1; i < v.size(); ++i) {
+            for (int i = begin+1; i < end; ++i) {
                 if (functor(v[i], v[min_t])) {
                     min_t = i;
                 } else if (functor(v[max_t], v[i])) {
@@ -171,13 +162,11 @@ namespace exa {
             v_t_min_max[tid*2] = min_t;
             v_t_min_max[tid*2+1] = max_t;
         };
-        std::sort(v_t_min_max.begin(), v_t_min_max.end(), functor);
+        std::sort(v_t_min_max.begin(), v_t_min_max.end(), [&](auto const &i1, auto const &i2) -> bool {
+            return v[i1] < v[i2];
+        });
         min = v_t_min_max[0];
         max = v_t_min_max[v_t_min_max.size()-1];
-#ifdef EXT_DEBUG_ON
-        auto minmax = std::minmax_element(std::next(v.begin(), begin), std::next(v.begin(), end), functor);
-        assert(*minmax.first == v[min] && *minmax.second == v[max]);
-#endif
         return std::make_pair(v[min], v[max]);
     }
 
