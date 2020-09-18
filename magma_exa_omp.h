@@ -101,8 +101,8 @@ namespace exa {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
 #endif
-        s_vec<int> v_copy_size(v_input.size() - in_begin, 0);
-        s_vec<int> v_copy_offset(v_copy_size.size());
+        s_vec<T> v_copy_size(v_input.size() - in_begin, 0);
+        s_vec<T> v_copy_offset(v_copy_size.size());
         #pragma omp parallel for
         for (int i = 0; i < v_copy_size.size(); ++i) {
             if (functor(v_input[i+in_begin])) {
@@ -117,7 +117,7 @@ namespace exa {
         v_output.resize(out_size);
         exclusive_scan(v_copy_size, v_copy_offset, 0, v_copy_size.size(), 0, static_cast<T>(in_begin));
         #pragma omp parallel for
-        for (int i = 0; i < v_copy_size.size(); ++i) {
+        for (std::size_t i = 0; i < v_copy_size.size(); ++i) {
             if (v_copy_size[i] == 1) {
                 v_output[v_copy_offset[i]] = v_input[i+in_begin];
             }
