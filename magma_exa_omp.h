@@ -152,7 +152,7 @@ namespace exa {
                 v_t_min_max.resize(omp_get_num_threads()*2, 0);
             }
             #pragma omp for
-            for (int i = begin+1; i < end; ++i) {
+            for (T i = begin+1; i < end; ++i) {
                 if (functor(v[i], v[min_t])) {
                     min_t = i;
                 } else if (functor(v[max_t], v[i])) {
