@@ -3,14 +3,6 @@
 //
 
 #include "nc_tree.h"
-#include <unordered_set>
-
-//inline int cell_index(s_vec<float> &v_coords, s_vec<float> &v_min_bounds, int const i, int const n_dim,
-//        int const d, float const e_l) {
-//    return (int)((v_coords[(i*n_dim)+d] - v_min_bounds[d]) / e_l);
-//}
-
-
 
 void nc_tree::determine_data_bounds() noexcept {
     v_min_bounds.resize(n_dim);
@@ -33,112 +25,6 @@ void nc_tree::determine_data_bounds() noexcept {
     });
     magma_util::print_vector("dim order: ", v_dim_order);
 }
-
-/*
-void nc_tree::sort_and_count(s_vec<float> &v_coord, s_vec<int> &v_coord_id, s_vec<int> &v_coord_index, s_vec<float> &v_min_bounds,
-        s_vec<int> &v_offset, s_vec<int> &v_size, int const n_dim, float const e) noexcept {
-    index_coords(v_coord, v_min_bounds, v_coord_index, e, n_dim);
-
-    exa::sort(v_coord_id, 0, v_coord_id.size(), [&](auto const &i1, auto const &i2) -> bool {
-        for (int d = 0; d < n_dim; ++d) {
-            if (v_coord_index[i1 * n_dim+d] < v_coord_index[i2 * n_dim+d]) {
-                return true;
-            }
-            if (v_coord_index[i1 * n_dim+d] > v_coord_index[i2 * n_dim+d]) {
-                return false;
-            }
-        }
-        return false;
-    });
-    s_vec<int> v_iota(v_coord_id.size());
-    exa::iota(v_iota, 0, v_iota.size(), 0);
-    exa::unique(v_iota, v_offset, 0, v_iota.size(), 0, [&](auto const &i) -> bool {
-        for (auto d = 0; d < n_dim; ++d) {
-            auto ci1 = v_coord_index[v_coord_id[i-1]*n_dim+d];
-            auto ci2 = v_coord_index[v_coord_id[i]*n_dim+d];
-            if (ci1 != ci2)
-                return true;
-        }
-        return false;
-    });
-    v_size.resize(v_offset.size());
-    exa::iota(v_size, 0, v_size.size(), 0);
-    exa::transform(v_size, v_size, 0, v_size.size()-1, 0,
-            [&](auto const &i) -> int {
-                return  v_offset[i+1] - v_offset[i];
-            });
-    v_size[v_size.size()-1] = (v_coord.size()/n_dim) - v_offset[v_size.size()-1];
-}
- */
-
-inline bool is_within_manhattan_2(s_vec<int>::iterator p1, s_vec<int>::iterator p2) {
-    if (*p1 - *p2 < -2 || *p1 - *p2 > 2 || *(p1+1) - *(p2+1) < -2 || *(p1+1) - *(p2+1) > 2)
-        return false;
-//    if ((*p1 -*p2 == -1 || *p1 -*p2 == 1) && ((*(p1+1) - *(p2+1) < -1) || (*(p1+1) - *(p2+1) > 1))) {
-//        return false;
-//    }
-    return true;
-}
-
-
-
-void nc_tree::index_points(s_vec<int> &v_p_id, s_vec<int> &v_p_cell_index) noexcept {
-    exa::for_each(v_p_id, 0, v_p_id.size(), [&](int const &i) -> void {
-        v_p_cell_index[i*2] = ((v_coord[i * n_dim + v_dim_order[0]] - v_min_bounds[v_dim_order[0]]) / e_l);
-        v_p_cell_index[i*2+1] = ((v_coord[i * n_dim + v_dim_order[1]] - v_min_bounds[v_dim_order[1]]) / e_l);
-    });
-}
-
-/*
-void nc_tree::index_into_cells(s_vec<int> &v_p_id, s_vec<int> &v_c_index, s_vec<int> &v_cell_offset,
-        s_vec<int> &v_cell_size) noexcept {
-    s_vec<int> v_p_cell_index(v_p_id.size() * 2);
-    index_points(v_p_id, v_p_cell_index);
-    exa::sort(v_p_id, 0, v_p_id.size(), [&](auto const &i1, auto const &i2) -> bool {
-        if (v_p_cell_index[i1*2] < v_p_cell_index[i2*2])
-            return true;
-        if (v_p_cell_index[i1*2] > v_p_cell_index[i2*2])
-            return false;
-        if (v_p_cell_index[i1*2+1] < v_p_cell_index[i2*2+1])
-            return true;
-        return false;
-    });
-
-    s_vec<int> v_iota(v_p_id.size());
-    exa::iota(v_iota, 0, v_iota.size(), 0);
-    exa::unique(v_iota, v_cell_offset, 0, v_iota.size(), 0, [&](auto const &i) -> bool {
-        if (v_p_cell_index[v_p_id[i - 1] * 2] != v_p_cell_index[v_p_id[i] * 2]
-            || v_p_cell_index[v_p_id[i - 1] * 2 + 1] != v_p_cell_index[v_p_id[i] * 2 + 1])
-            return true;
-        return false;
-    });
-    v_cell_size.resize(v_cell_offset.size());
-    exa::iota(v_cell_size, 0, v_cell_size.size(), 0);
-    exa::transform(v_cell_size, v_cell_size, 0, v_cell_size.size()-1, 0,
-            [&](auto const &i) -> int {
-                return  v_cell_offset[i+1] - v_cell_offset[i];
-            });
-    v_cell_size[v_cell_size.size()-1] = n_coord - v_cell_offset[v_cell_size.size()-1];
-
-    v_iota.resize(v_cell_offset.size());
-    v_c_index.resize(v_cell_offset.size() * 2);
-    exa::for_each(v_iota, 0, v_iota.size(), [&](int const &i) -> void {
-        v_c_index[i * 2] = v_p_cell_index[v_p_id[v_cell_offset[i]] * 2];
-        v_c_index[i * 2 + 1] = v_p_cell_index[v_p_id[v_cell_offset[i]] * 2 + 1];
-    });
-
-#ifdef DEBUG_ON
-    std::cout << "Total number of cells: " << v_cell_size.size() << std::endl;
-    assert(v_cell_offset.size() == v_cell_size.size());
-    for (int c1 = 0; c1 < v_cell_size.size(); c1++) {
-        for (int i = 1; i < v_cell_size[c1]; ++i) {
-            assert(v_c_index[c1 * 2] == v_p_cell_index[v_p_id[v_cell_offset[c1] + i - 1] * 2]);
-            assert(v_c_index[c1 * 2 + 1] == v_p_cell_index[v_p_id[v_cell_offset[c1] + i - 1] * 2 + 1]);
-        }
-    }
-#endif
-}
-*/
 
 void nc_tree::index_into_cells(s_vec<int> &v_point_id, s_vec<int> &v_cell_size, s_vec<int> &v_cell_offset,
         s_vec<int> &v_cell_index, int const dim_part_size) noexcept {
@@ -172,66 +58,6 @@ void nc_tree::index_into_cells(s_vec<int> &v_point_id, s_vec<int> &v_cell_size, 
     v_cell_index = v_iota;
     exa::transform(v_cell_index, v_cell_index, 0, v_cell_index.size(), 0, [&](int const &i) -> int {
         return v_point_cell_index[v_point_id[v_cell_offset[i]]];
-    });
-}
-
-void nc_tree::determine_cell_reach(s_vec<int> &v_cell_index, s_vec<int> &v_cell_reach, s_vec<int> &v_cell_reach_size,
-        s_vec<int> &v_cell_reach_offset, int const n_cells, s_vec<int> &v_dim_part_size) noexcept {
-    s_vec<int> v_cell_reach_full(9 * n_cells, -1);
-    s_vec<int> v_cell_iota(n_cells);
-    v_cell_reach_offset.resize(n_cells);
-    v_cell_reach_size.resize(n_cells);
-    exa::iota(v_cell_iota, 0, v_cell_iota.size(), 0);
-    exa::for_each(v_cell_iota, 0, v_cell_iota.size(), [&](int const &i) -> void {
-        auto begin = std::next(v_cell_reach_full.begin(), i * 9);
-        auto i_index = begin;
-        *(i_index++) = i;
-        // middle
-        if (v_cell_index[i] % v_dim_part_size[0] > 0 && v_cell_index[i-1] == v_cell_index[i]-1) {
-            *(i_index++) = i-1;
-//            std::cout << "1: " << v_cell_index[i-1] << " " << v_cell_index[i] << std::endl;
-        }
-        if (v_cell_index[i] % v_dim_part_size[0] < v_dim_part_size[0]-1 && v_cell_index[i]+1 == v_cell_index[i+1]) {
-            *(i_index++) = i+1;
-//            std::cout << "2: " << v_cell_index[i] << " " << v_cell_index[i+1] << std::endl;
-        }
-        // above
-        if (v_cell_index[i] >= v_dim_part_size[0]) {
-            auto low = std::lower_bound(v_cell_index.begin(), v_cell_index.end(), v_cell_index[i]-v_dim_part_size[0]-1);
-            if (*low == v_cell_index[i]-v_dim_part_size[0]-1) {
-                *(i_index++) = low - v_cell_index.begin();
-                ++low;
-            }
-            if (*low == v_cell_index[i]-v_dim_part_size[0]) {
-                *(i_index++) = low - v_cell_index.begin();
-                ++low;
-            }
-            if (*low == v_cell_index[i]-v_dim_part_size[0]+1) {
-                *(i_index++) = low - v_cell_index.begin();
-                ++low;
-            }
-        }
-        // below
-        if (v_cell_index[i] / v_dim_part_size[0] < v_dim_part_size[1]-1) {
-            auto low = std::lower_bound(v_cell_index.begin(), v_cell_index.end(), v_cell_index[i]+v_dim_part_size[0]-1);
-            if (*low == v_cell_index[i]+v_dim_part_size[0]-1) {
-                *(i_index++) = low - v_cell_index.begin();
-                ++low;
-            }
-            if (*low == v_cell_index[i]+v_dim_part_size[0]) {
-                *(i_index++) = low - v_cell_index.begin();
-                ++low;
-            }
-            if (*low == v_cell_index[i]+v_dim_part_size[0]+1) {
-                *(i_index++) = low - v_cell_index.begin();
-                ++low;
-            }
-        }
-        v_cell_reach_size[i] = i_index - begin;
-    });
-    exa::exclusive_scan(v_cell_reach_size, v_cell_reach_offset, 0, v_cell_reach_size.size(), 0, 0);
-    exa::copy_if(v_cell_reach_full, v_cell_reach, 0, v_cell_reach_full.size(), 0, [&](int const &val) -> bool {
-        return val >= 0;
     });
 }
 
@@ -459,7 +285,6 @@ void nc_tree::process_points(s_vec<int> &v_point_id, s_vec<float> &v_point_data)
 }
 
 void nc_tree::process6() noexcept {
-//    s_vec<int> v_dim_part_size(2);
     v_dim_part_size.resize(2);
     v_dim_part_size[0] = (v_max_bounds[v_dim_order[0]] - v_min_bounds[v_dim_order[0]]) / e + 1;
     v_dim_part_size[1] = (v_max_bounds[v_dim_order[1]] - v_min_bounds[v_dim_order[1]]) / e + 1;
