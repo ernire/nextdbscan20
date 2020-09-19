@@ -49,24 +49,6 @@ namespace magma_util {
         std::cout << std::endl;
     }
 
-    template<class T, typename std::enable_if<std::is_arithmetic<T>::value>::type * = nullptr>
-    void max_elem(const std::string &name, std::vector<T> &v_vec) noexcept {
-        T max = 0;
-        for (int i = 0; i < v_vec.size(); ++i) {
-            if (v_vec[i] > max) {
-                max = v_vec[i];
-            }
-        }
-        std::cout << name;
-        std::cout << " max value is " << max << std::endl;
-//        return max;
-//        std::cout << name;
-//        for (int i = 0; i < v_vec.size(); ++i) {
-//            std::cout << v_vec[i] << " ";
-//        }
-//        std::cout << std::endl;
-    }
-
     template<class T>
     void print_vector(const std::string &name, std::vector<T> &v_vec) noexcept {
         std::cout << name;
@@ -78,7 +60,6 @@ namespace magma_util {
 
     template<class T, typename std::enable_if<std::is_arithmetic<T>::value>::type * = nullptr>
     void random_vector(std::vector<T> &vec, const size_t pool_size) noexcept {
-//        std::default_random_engine generator(std::random_device{}());
         // TODO not constant seed value
         std::default_random_engine generator(12345);
         random_distribution<T> rnd_dist(0, pool_size);
@@ -87,6 +68,7 @@ namespace magma_util {
             val = rnd_gen();
         }
     }
+
 }
 
 #endif //NEXTDBSCAN20_MAGMA_UTIL_H

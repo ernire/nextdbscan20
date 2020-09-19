@@ -24,6 +24,7 @@ private:
     s_vec<int> v_coord_index;
     s_vec<int> v_dim_order;
 
+    /*
     static void index_coords(s_vec<float> &v_coord, s_vec<float> &v_min_bound, s_vec<int> &v_coord_index,
             float const e, int const n_dim) noexcept {
 #ifdef DEBUG_ON
@@ -35,9 +36,12 @@ private:
 //            return get_cell_index(v_coord[i], v_min_bound[i%n_dim], e);
         });
     }
+     */
 
+    /*
     static void sort_and_count(s_vec<float> &v_coord, s_vec<int> &v_coord_id, s_vec<int> &v_coord_index,
             s_vec<float> &v_min_bounds, s_vec<int> &v_offset, s_vec<int> &v_size, int n_dim, float e) noexcept;
+    */
 
     static float get_lowest_e(float const e, long const n_dim) noexcept {
         // TODO find a less wasteful formula to maintain precision

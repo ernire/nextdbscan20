@@ -119,15 +119,6 @@ namespace exa {
         std::transform(std::next(v_input.begin(), in_begin),
                 std::next(v_input.begin(), in_end), std::next(v_output.begin(), out_begin), functor);
     }
-
-    // for each
-    // reduce
-    // copy if
-    // count if
-    // unique
-
-    // lower & upper bound ?
-    // swap ranges ?
 }
 
 #endif //EXAFOUNDRY_EXA_H

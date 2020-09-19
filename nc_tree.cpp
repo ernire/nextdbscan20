@@ -34,6 +34,7 @@ void nc_tree::determine_data_bounds() noexcept {
     magma_util::print_vector("dim order: ", v_dim_order);
 }
 
+/*
 void nc_tree::sort_and_count(s_vec<float> &v_coord, s_vec<int> &v_coord_id, s_vec<int> &v_coord_index, s_vec<float> &v_min_bounds,
         s_vec<int> &v_offset, s_vec<int> &v_size, int const n_dim, float const e) noexcept {
     index_coords(v_coord, v_min_bounds, v_coord_index, e, n_dim);
@@ -68,6 +69,7 @@ void nc_tree::sort_and_count(s_vec<float> &v_coord, s_vec<int> &v_coord_id, s_ve
             });
     v_size[v_size.size()-1] = (v_coord.size()/n_dim) - v_offset[v_size.size()-1];
 }
+ */
 
 inline bool is_within_manhattan_2(s_vec<int>::iterator p1, s_vec<int>::iterator p2) {
     if (*p1 - *p2 < -2 || *p1 - *p2 > 2 || *(p1+1) - *(p2+1) < -2 || *(p1+1) - *(p2+1) > 2)
@@ -231,10 +233,6 @@ void nc_tree::determine_cell_reach(s_vec<int> &v_cell_index, s_vec<int> &v_cell_
     exa::copy_if(v_cell_reach_full, v_cell_reach, 0, v_cell_reach_full.size(), 0, [&](int const &val) -> bool {
         return val >= 0;
     });
-#ifdef DEBUG_ON
-    auto sum = std::reduce(v_cell_reach_size.begin(), v_cell_reach_size.end(), 0);
-    assert(sum == v_cell_reach.size());
-#endif
 }
 
 void nc_tree::collect_cells_in_reach(s_vec<int> &v_point_index, s_vec<int> &v_cell_reach,
@@ -362,6 +360,7 @@ void nc_tree::process_points(s_vec<int> &v_point_id, s_vec<float> &v_point_data)
         }
     });
 
+    /*
 #ifdef DEBUG_ON
     for (auto const &val : v_hit_table_id_1) {
         assert(val != -1);
@@ -371,6 +370,7 @@ void nc_tree::process_points(s_vec<int> &v_point_id, s_vec<float> &v_point_data)
         assert(val != -1);
     }
 #endif
+    */
 
     s_vec<int> v_hit_table_iota(v_hit_table_id_1.size());
     exa::iota(v_hit_table_iota, 0, v_hit_table_iota.size(), 0);
@@ -442,7 +442,7 @@ void nc_tree::process_points(s_vec<int> &v_point_id, s_vec<float> &v_point_data)
 
     exa::for_each(v_point_iota, 0, v_point_iota.size(), [&](int const &i) -> void {
         if (v_point_nn[i] >= m) {
-            assert(v_point_cluster[i] != NO_CLUSTER);
+//            assert(v_point_cluster[i] != NO_CLUSTER);
             for (int j = 0; j < v_points_in_reach_size[i]; ++j) {
                 auto id2 = v_hit_table_id_2[v_points_in_reach_offset[i] + j];
                 if (id2 == -1) continue;
