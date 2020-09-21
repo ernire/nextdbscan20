@@ -11,6 +11,7 @@
 #include <chrono>
 #include <functional>
 
+/*
 template<typename T>
 using random_distribution = std::conditional_t<std::is_integral<T>::value,
         std::uniform_int_distribution<T>,
@@ -18,12 +19,27 @@ using random_distribution = std::conditional_t<std::is_integral<T>::value,
                 std::uniform_real_distribution<T>,
                 void>
 >;
+*/
 
 namespace magma_util {
 
-    int get_block_size(int block_index, int number_of_samples, int number_of_blocks) noexcept;
+    int get_block_size(int block_index, int number_of_samples, int number_of_blocks) noexcept {
+        int block = (number_of_samples / number_of_blocks);
+        int reserve = number_of_samples % number_of_blocks;
+        //    Some processes will need one more sample if the data size does not fit completely
+        if (reserve > 0 && block_index < reserve) {
+            return block + 1;
+        }
+        return block;
+    }
 
-    int get_block_offset(int block_index, int number_of_samples, int number_of_blocks) noexcept;
+    int get_block_offset(int block_index, int number_of_samples, int number_of_blocks) noexcept {
+        int offset = 0;
+        for (int i = 0; i < block_index; i++) {
+            offset += get_block_size(i, number_of_samples, number_of_blocks);
+        }
+        return offset;
+    }
 
     template<class F>
     long long measure_duration(std::string const &name, bool const is_verbose, F const &functor) noexcept {
@@ -40,8 +56,9 @@ namespace magma_util {
         return duration;
     }
 
+    /*
     template<class T>
-    void print_vector_n(const std::string &name, std::vector<T> &v_vec, int n) noexcept {
+    void print_vector_n(const std::string &name, h_vec<T> &v_vec, int n) noexcept {
         std::cout << name;
         for (int i = 0; i < v_vec.size() && i < n; ++i) {
             std::cout << v_vec[i] << " ";
@@ -50,14 +67,24 @@ namespace magma_util {
     }
 
     template<class T>
-    void print_vector(const std::string &name, std::vector<T> &v_vec) noexcept {
+    void print_vector(const std::string &name, h_vec<T> &v_vec) noexcept {
         std::cout << name;
         for (int i = 0; i < v_vec.size(); ++i) {
             std::cout << v_vec[i] << " ";
         }
         std::cout << std::endl;
     }
+     */
+    template<class T>
+    void print_v(const std::string &name, T *v, std::size_t size) noexcept {
+        std::cout << name;
+        for (int i = 0; i < size; ++i) {
+            std::cout << v[i] << " ";
+        }
+        std::cout << std::endl;
+    }
 
+    /*
     template<class T, typename std::enable_if<std::is_arithmetic<T>::value>::type * = nullptr>
     void random_vector(std::vector<T> &vec, const size_t pool_size) noexcept {
         // TODO not constant seed value
@@ -68,6 +95,7 @@ namespace magma_util {
             val = rnd_gen();
         }
     }
+     */
 
 }
 

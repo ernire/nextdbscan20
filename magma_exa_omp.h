@@ -12,12 +12,17 @@
 #include <utility>
 #include <numeric>
 #include <limits>
+#include <cmath>
 #include <iostream>
 #include <omp.h>
 #include "magma_util.h"
 
 template <typename T>
 using s_vec = std::vector<T>;
+template <typename T>
+using h_vec = std::vector<T>;
+template <typename T>
+using d_vec = std::vector<T>;
 
 namespace exa {
 
@@ -33,7 +38,7 @@ namespace exa {
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void iota(s_vec<T> &v, std::size_t const begin, std::size_t const end, int const startval) noexcept {
+    void iota(s_vec<T> &v, std::size_t const begin, std::size_t const end, std::size_t const startval) noexcept {
 #ifdef DEBUG_ON
         assert(begin <= end);
 #endif
@@ -50,7 +55,7 @@ namespace exa {
 #endif
         std::size_t cnt = 0;
         #pragma omp parallel for reduction(+:cnt)
-        for (int i = begin; i < end - begin; ++i) {
+        for (int i = begin; i < end; ++i) {
             if (functor(v[i]))
                 ++cnt;
         }

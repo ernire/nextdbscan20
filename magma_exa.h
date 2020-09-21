@@ -12,9 +12,6 @@
 #include <utility>
 #include <numeric>
 
-template <typename T>
-using s_vec = std::vector<T>;
-
 namespace exa {
     template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
     void copy_if(s_vec<T> &v_input, s_vec<T> &v_output, std::size_t const in_begin, std::size_t const in_end,

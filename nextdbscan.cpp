@@ -11,7 +11,7 @@
 #include <cmath>
 #include "nextdbscan.h"
 #include "magma_input.h"
-#include "nc_tree.h"
+
 
 nextdbscan::result nextdbscan::start(int const m, float const e, int const n_thread, std::string const &in_file,
         magmaMPI mpi) noexcept {

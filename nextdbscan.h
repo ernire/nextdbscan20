@@ -6,7 +6,7 @@
 #define NEXTDBSCAN20_NEXTDBSCAN_H
 
 #include <string>
-#include "magma_meta.h"
+#include "nc_tree.h"
 #include "magma_mpi.h"
 
 namespace nextdbscan {

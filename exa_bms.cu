@@ -3,6 +3,7 @@
 //
 #include <iostream>
 #include <numeric>
+#include <thrust/random.h>
 #include "magma_meta.h"
 #include "magma_util.h"
 
@@ -16,14 +17,17 @@ void print_vector(const std::string &name, s_vec<T> &v_vec) noexcept {
 }
 
 template<class T, typename std::enable_if<std::is_arithmetic<T>::value>::type * = nullptr>
-void random_vector(s_vec<T> &vec, const size_t pool_size) noexcept {
+void random_vector(s_vec<T> &vec, const size_t pool_size, const unsigned int seed) noexcept {
     // TODO not constant seed value
     std::default_random_engine generator(12345);
     random_distribution<T> rnd_dist(0, pool_size);
     auto rnd_gen = std::bind(rnd_dist, generator);
-    for (auto &val : vec) {
-        val = rnd_gen();
+    for (int i = 0; i < vec.size(); ++i) {
+        vec[i] = rnd_gen();
     }
+//    for (auto &val : vec) {
+//        val = rnd_gen();
+//    }
 }
 
 void print_cuda_memory_usage() {
@@ -89,14 +93,19 @@ void for_each_bm(s_vec<long long> &v_input, s_vec<long long> &v_work, s_vec<long
 #ifdef OMP_ON
         omp_set_num_threads(static_cast<int>(powf(2, i)));
 #endif
+
         v_time[i] = magma_util::measure_duration("", false, [&]() -> void {
-//            exa::for_each(v_input, 0, v_input.size(), [&]__device__(auto &v) -> void {
-//                long long sum = 0;
-//                for (auto const &v2 : v_work) {
-//                    sum += v2;
-//                }
-//                v = sum;
-//            });
+            auto const begin = v_work.begin();
+            auto const end = v_work.end();
+            exa::for_each(v_input, 0, v_input.size(), [=]__device__(auto &v) -> void {
+                long long sum = 0;
+                auto bb = begin;
+                while (bb != end) {
+                    sum += *bb;
+                    ++bb;
+                }
+                v = sum;
+            });
         });
     }
     print_vector("Exa for_each Times: ", v_time);
@@ -146,9 +155,8 @@ void sort_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const n_it
 #ifdef OMP_ON
         omp_set_num_threads(static_cast<int>(powf(2, i)));
 #endif
-        auto v_copy = v_input;
         v_time[i] = magma_util::measure_duration("", false, [&]() -> void {
-            exa::sort(v_copy, 0, v_copy.size(), []__device__(auto const &v1, auto const &v2) -> bool {
+            exa::sort(v_input, 0, v_input.size(), []__device__(auto const &v1, auto const &v2) -> bool {
                 return v1 < v2;
             });
         });
@@ -180,8 +188,10 @@ void unique_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const n_
 #endif
         auto v_copy = v_input;
         v_time[i] = magma_util::measure_duration("", false, [&]() -> void {
+            auto const begin = v_input.begin();
             exa::unique(v_iota, v_copy, 0, v_iota.size(), 0, [=]__device__(auto const &i) -> bool {
-                return v_input[i-1] != v_input[i];
+                return *(begin+i-1) != *(begin+i);
+//                return v_input[i-1] != v_input[i];
             });
         });
     }
@@ -191,16 +201,13 @@ void unique_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const n_
 int main(int argc, char **argv) {
     std::cout << "Starting Exa Benchmark Tests" << std::endl;
 
-    print_cuda_memory_usage();
-
-//    int const INT32 = INT32_MAX;
-    int const MB100 = 100000000;
+    int const MB100 = 10000000;
     s_vec<long long> v_input(MB100);
     int n_iter = 1;
-//    long long cnt = 0;
     std::cout << "iterations: " << n_iter << std::endl;
     s_vec<long long> v_time(n_iter);
 
+    /*
     // iota
     iota_bm(v_input, v_time, n_iter);
     std::cout << std::endl;
@@ -210,26 +217,14 @@ int main(int argc, char **argv) {
     std::cout << std::endl;
 
     // count_if
-//    magma_util::measure_duration("std count_if: ", true, [&]() -> void {
-//        cnt = std::count_if(v_input.begin(), v_input.end(), [](auto const &v) -> bool {
-//            return v % 2 == 0;
-//        });
-//    });
-//    std::cout << "count result: " << cnt << std::endl;
     count_if_bm(v_input, v_time, n_iter);
     std::cout << std::endl;
 
     // minmax_element
-//    magma_util::measure_duration("std minmax_element: ", true, [&]() -> void {
-//        std::minmax_element(v_input.begin(), v_input.end());
-//    });
     minmax_element_bm(v_input, v_time, n_iter);
     std::cout << std::endl;
 
     // fill
-//    magma_util::measure_duration("std fill: ", true, [&]() -> void {
-//        std::fill(v_input.begin(), v_input.end(), 100);
-//    });
     fill_bm(v_input, v_time, n_iter);
     std::cout << std::endl;
 
@@ -246,26 +241,23 @@ int main(int argc, char **argv) {
 
     // for_each
     v_copy.resize(100);
-//    magma_util::measure_duration("std for_each: ", true, [&]() -> void {
-//        std::for_each(v_input.begin(), v_input.end(), [&](auto &v) -> void {
-//            long long sum = 0;
-//            for (auto const &v2 : v_copy) {
-//                sum += v2;
-//            }
-//            v = sum;
-//        });
-//    });
+    std::cout << "reduce copy: " << exa::reduce(v_copy, 0, v_copy.size(), (long long)0) << std::endl;
     for_each_bm(v_input, v_copy, v_time, n_iter);
-    std::cout << std::endl;
+    std::cout << v_input[0] << " : " << v_input[1] << std::endl;
 
     // sort
     v_input.resize(MB100);
-//    random_vector(v_input, v_input.size() / 2);
-    v_copy = v_input;
-//    magma_util::measure_duration("std sort: ", true, [&]() -> void {
-//        std::sort(v_copy.begin(), v_copy.end());
-//    });
-//    sort_bm(v_input, v_time, n_iter);
+    exa::iota(v_input, 0, v_input.size(), 0);
+    exa::transform(v_input, v_input, 0, 0, 0, [=]__device__(int const &i) -> int {
+        thrust::default_random_engine rng;
+        thrust::uniform_real_distribution<int> dist(0, MB100/4);
+        rng.discard(i);
+        return dist(rng);
+    });
+
+    print_cuda_memory_usage();
+
+    sort_bm(v_input, v_time, n_iter);
 //    std::cout << std::endl;
 
     // unique
@@ -274,6 +266,6 @@ int main(int argc, char **argv) {
 //        auto last = std::unique(v_copy.begin(), v_copy.end());
 //        v_copy.erase(last, v_copy.end());
 //    });
-//    unique_bm(v_input, v_time, n_iter);
-
+    unique_bm(v_input, v_time, n_iter);
+    */
 }

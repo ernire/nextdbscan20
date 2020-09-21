@@ -128,6 +128,8 @@ void nc_tree::process_points(s_vec<int> &v_point_id, s_vec<float> &v_point_data)
     std::cout << "id size: " << v_point_id.size() << " : " << v_point_data.size() << std::endl;
     s_vec<int> v_point_iota(v_point_id.size());
     exa::iota(v_point_iota, 0, v_point_iota.size(), 0);
+
+
     exa::for_each(v_point_id, 0, v_point_id.size(), [&](int const &id) -> void {
         if (id >= 0) {
             // local, we can modify the status
@@ -245,6 +247,9 @@ void nc_tree::process_points(s_vec<int> &v_point_id, s_vec<float> &v_point_data)
                         if (v_coord_cluster[id2] == NO_CLUSTER) {
                             v_coord_cluster[v_point_id[i]] = v_point_cluster[i];
                         } else if (v_coord_cluster[id2] < v_point_cluster[i]) {
+//                            if (v_point_cluster[i] != i + cluster_size) {
+//                                std::cout << "CHECKPOINT!" << std::endl;
+//                            }
                             v_point_cluster[i] = v_coord_cluster[id2];
                             if (v_point_id[i] >= 0) {
                                 v_coord_cluster[v_point_id[i]] = v_point_cluster[i];
@@ -266,6 +271,7 @@ void nc_tree::process_points(s_vec<int> &v_point_id, s_vec<float> &v_point_data)
     std::cout << "new clusters: " << new_clusters << std::endl;
     cluster_size += new_clusters;
 
+
     exa::for_each(v_point_iota, 0, v_point_iota.size(), [&](int const &i) -> void {
         if (v_point_nn[i] >= m) {
 //            assert(v_point_cluster[i] != NO_CLUSTER);
@@ -275,9 +281,11 @@ void nc_tree::process_points(s_vec<int> &v_point_id, s_vec<float> &v_point_data)
                 if (v_coord_cluster[id2] == NO_CLUSTER) {
                     v_coord_cluster[id2] = v_point_cluster[i];
                 }
-//                else if (v_coord_cluster[id2] != v_point_cluster[i] && v_coord_nn[id2] >= m) {
-//                    std::cout << "CHECKPINT!!" << std::endl;
-//                }
+                else if (v_coord_cluster[id2] != v_point_cluster[i] && v_coord_nn[id2] >= m) {
+                    std::cout << "CHECKPINT!!" << std::endl;
+//                    assert(v_point_cluster[i] < v_coord_cluster[id2]);
+//                    v_coord_cluster[id2] = v_point_cluster[i];
+                }
             }
         }
     });
@@ -304,8 +312,8 @@ void nc_tree::process6() noexcept {
     magma_util::measure_duration("Process Points: ", true, [&]() -> void {
         int n_blocks = 1;
         for (int i = 0; i < n_blocks; ++i) {
-            int block_size = magma_util::get_block_size(i, v_point_id.size(), n_blocks);
-            int block_offset = magma_util::get_block_offset(i, v_point_id.size(), n_blocks);
+            int block_size = get_block_size(i, v_point_id.size(), n_blocks);
+            int block_offset = get_block_offset(i, v_point_id.size(), n_blocks);
             std::cout << "block offset: " << block_offset << " size: " << block_size << std::endl;
             v_id_chunk.clear();
             v_id_chunk.insert(v_id_chunk.begin(), std::next(v_point_id.begin(), block_offset),

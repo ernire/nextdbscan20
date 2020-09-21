@@ -7,6 +7,25 @@
 #endif
 #include "magma_meta.h"
 
+template<typename T>
+using random_distribution = std::conditional_t<std::is_integral<T>::value,
+        std::uniform_int_distribution<T>,
+        std::conditional_t<std::is_floating_point<T>::value,
+                std::uniform_real_distribution<T>,
+                void>
+>;
+
+template<class T, typename std::enable_if<std::is_arithmetic<T>::value>::type * = nullptr>
+void random_vector(std::vector<T> &vec, const size_t pool_size) noexcept {
+    // TODO not constant seed value
+    std::default_random_engine generator(12345);
+    random_distribution<T> rnd_dist(0, pool_size);
+    auto rnd_gen = std::bind(rnd_dist, generator);
+    for (auto &val : vec) {
+        val = rnd_gen();
+    }
+}
+
 void count_if_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const n_iter) {
     for (long long i = 0; i < n_iter; ++i) {
 #ifdef OMP_ON
@@ -18,7 +37,7 @@ void count_if_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const 
             });
         });
     }
-    magma_util::print_vector("Exa count_if Times: ", v_time);
+    magma_util::print_v("Exa count_if Times: ", &v_time[0], v_time.size());
 }
 
 void copy_bm(s_vec<long long> &v_input, s_vec<long long> &v_output, s_vec<long long> &v_time, int const n_iter) {
@@ -33,7 +52,7 @@ void copy_bm(s_vec<long long> &v_input, s_vec<long long> &v_output, s_vec<long l
             });
         });
     }
-    magma_util::print_vector("Exa copy_if Times: ", v_time);
+    magma_util::print_v("Exa copy_if Times: ", &v_time[0], v_time.size());
 }
 
 void fill_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const n_iter) {
@@ -45,7 +64,7 @@ void fill_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const n_it
             exa::fill(v_input, 0, v_input.size(), i);
         });
     }
-    magma_util::print_vector("Exa Fill Times: ", v_time);
+    magma_util::print_v("Exa fill Times: ", &v_time[0], v_time.size());
 }
 
 void for_each_bm(s_vec<long long> &v_input, s_vec<long long> &v_work, s_vec<long long> &v_time, int const n_iter) {
@@ -63,7 +82,7 @@ void for_each_bm(s_vec<long long> &v_input, s_vec<long long> &v_work, s_vec<long
             });
         });
     }
-    magma_util::print_vector("Exa for_each Times: ", v_time);
+    magma_util::print_v("Exa for_each Times: ", &v_time[0], v_time.size());
 }
 
 void iota_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const n_iter) {
@@ -75,7 +94,7 @@ void iota_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const n_it
             exa::iota(v_input, 0, v_input.size(), i);
         });
     }
-    magma_util::print_vector("Exa iota Times: ", v_time);
+    magma_util::print_v("Exa iota Times: ", &v_time[0], v_time.size());
 }
 
 void minmax_element_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const n_iter) {
@@ -89,7 +108,7 @@ void minmax_element_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int 
             });
         });
     }
-    magma_util::print_vector("Exa mimmax_element Times: ", v_time);
+    magma_util::print_v("Exa minmax_element Times: ", &v_time[0], v_time.size());
 }
 
 void reduce_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const n_iter) {
@@ -101,7 +120,7 @@ void reduce_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const n_
             exa::reduce(v_input, 0, v_input.size(), static_cast<long long>(0));
         });
     }
-    magma_util::print_vector("Exa reduce Times: ", v_time);
+    magma_util::print_v("Exa reduce Times: ", &v_time[0], v_time.size());
 }
 
 void sort_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const n_iter) {
@@ -116,7 +135,7 @@ void sort_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const n_it
             });
         });
     }
-    magma_util::print_vector("Exa sort Times: ", v_time);
+    magma_util::print_v("Exa sort Times: ", &v_time[0], v_time.size());
 }
 
 void transform_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const n_iter) {
@@ -130,7 +149,7 @@ void transform_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const
             });
         });
     }
-    magma_util::print_vector("Exa count_if Times: ", v_time);
+    magma_util::print_v("Exa count_if Times: ", &v_time[0], v_time.size());
 }
 
 void unique_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const n_iter) {
@@ -147,7 +166,7 @@ void unique_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const n_
             });
         });
     }
-    magma_util::print_vector("Exa unique Times: ", v_time);
+    magma_util::print_v("Exa unique Times: ", &v_time[0], v_time.size());
 }
 
 int main(int argc, char **argv) {
@@ -246,7 +265,7 @@ int main(int argc, char **argv) {
 
     // sort
     v_input.resize(MB100);
-    magma_util::random_vector(v_input, v_input.size() / 2);
+    random_vector(v_input, v_input.size() / 2);
     v_copy = v_input;
     magma_util::measure_duration("std sort: ", true, [&]() -> void {
         std::sort(v_copy.begin(), v_copy.end());

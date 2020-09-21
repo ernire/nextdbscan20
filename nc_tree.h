@@ -5,7 +5,6 @@
 #ifndef NEXTDBSCAN20_NC_TREE_H
 #define NEXTDBSCAN20_NC_TREE_H
 
-#include "magma_meta.h"
 #include "magma_util.h"
 
 static const int NO_CLUSTER = -2;

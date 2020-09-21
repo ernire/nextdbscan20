@@ -42,8 +42,8 @@ namespace magma_input {
         std::ifstream ifs(in_file, std::ios::in | std::ifstream::binary);
         ifs.read((char *) &n_coord, sizeof(int));
         ifs.read((char *) &n_dim, sizeof(int));
-        auto size = magma_util::get_block_size(i_node, n_coord, n_nodes);
-        auto offset = magma_util::get_block_offset(i_node, n_coord, n_nodes);
+        auto size = get_block_size(i_node, n_coord, n_nodes);
+        auto offset = get_block_offset(i_node, n_coord, n_nodes);
         auto feature_offset = 2 * sizeof(int) + (offset * n_dim * sizeof(float));
         v_points.resize(size * n_dim);
         ifs.seekg(feature_offset, std::istream::beg);
