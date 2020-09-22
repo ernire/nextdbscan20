@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.14)
 project(nextdbscan20 LANGUAGES CXX)
 
-set(OMP ON)
+set(OMP OFF)
 set(MPI OFF)
 set(CUDA OFF)
 set(DEBUG ON)
 set(GTEST OFF)
-set(BMS ON)
+set(BMS OFF)
 
 set(NDB_FILES nextdbscan.cpp nc_tree.cpp)
 
@@ -63,7 +63,7 @@ elseif (OMP)
 elseif(CUDA)
     add_definitions(-DCUDA_ON)
     set(CMAKE_CUDA_STANDARD 20)
-    add_executable(nextdbscan20 main.cu ${NDB_FILES})
+    add_executable(nextdbscan20 main.cu nextdbscan.cpp nc_tree.cu)
 #    add_executable(nextdbscan20 main.cu nextdbscan.cpp)
 else()
     set(CMAKE_CXX_STANDARD 20)

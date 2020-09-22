@@ -14,7 +14,7 @@
 
 namespace exa {
     template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void copy_if(s_vec<T> &v_input, s_vec<T> &v_output, std::size_t const in_begin, std::size_t const in_end,
+    void copy_if(d_vec<T> &v_input, d_vec<T> &v_output, std::size_t const in_begin, std::size_t const in_end,
             std::size_t const out_begin, F const &functor) {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
@@ -28,7 +28,7 @@ namespace exa {
     }
 
     template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    T count_if(s_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) {
+    T count_if(d_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) {
 #ifdef DEBUG_ON
         assert(begin <= end);
 #endif
@@ -36,7 +36,7 @@ namespace exa {
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void fill(s_vec<T> &v, std::size_t const begin, std::size_t const end, T const val) noexcept {
+    void fill(d_vec<T> &v, std::size_t const begin, std::size_t const end, T const val) noexcept {
 #ifdef DEBUG_ON
         assert(begin <= end);
 #endif
@@ -44,7 +44,7 @@ namespace exa {
     }
 
     template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void for_each(s_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) {
+    void for_each(d_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) {
 #ifdef DEBUG_ON
         assert(begin <= end);
 #endif
@@ -52,7 +52,7 @@ namespace exa {
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void exclusive_scan(s_vec<T> &v_input, s_vec<T> &v_output, std::size_t const in_begin, std::size_t const in_end,
+    void exclusive_scan(d_vec<T> &v_input, d_vec<T> &v_output, std::size_t const in_begin, std::size_t const in_end,
             std::size_t const out_begin, T const init) noexcept {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
@@ -62,7 +62,7 @@ namespace exa {
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void iota(s_vec<T> &v, std::size_t const begin, std::size_t const end, int const startval) noexcept {
+    void iota(d_vec<T> &v, std::size_t const begin, std::size_t const end, int const startval) noexcept {
 #ifdef DEBUG_ON
         assert(begin <= end);
 #endif
@@ -70,7 +70,7 @@ namespace exa {
     }
 
     template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    std::pair<T, T> minmax_element(s_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) noexcept {
+    std::pair<T, T> minmax_element(d_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) noexcept {
 #ifdef DEBUG_ON
         assert(begin <= end);
 #endif
@@ -80,7 +80,7 @@ namespace exa {
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    T reduce(s_vec<T> &v, std::size_t const begin, std::size_t const end, T const startval) {
+    T reduce(d_vec<T> &v, std::size_t const begin, std::size_t const end, T const startval) {
 #ifdef DEBUG_ON
         assert(begin <= end);
         assert((end - begin) <= (v.size() - begin));
@@ -89,7 +89,7 @@ namespace exa {
     }
 
     template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void sort(s_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) noexcept {
+    void sort(d_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) noexcept {
 #ifdef DEBUG_ON
         assert(begin <= end);
         assert((end - begin) <= (v.size() - begin));
@@ -98,7 +98,7 @@ namespace exa {
     }
 
     template <typename T1, typename T2, typename F, typename std::enable_if<std::is_arithmetic<T1>::value>::type* = nullptr>
-    void unique(s_vec<T1> &v_input, s_vec<T2> &v_output, std::size_t const in_begin, std::size_t const in_end,
+    void unique(d_vec<T1> &v_input, d_vec<T2> &v_output, std::size_t const in_begin, std::size_t const in_end,
             std::size_t const out_begin, F const &functor) {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
@@ -108,7 +108,7 @@ namespace exa {
     }
 
     template <typename T1, typename T2, typename F, typename std::enable_if<std::is_arithmetic<T1>::value>::type* = nullptr>
-    void transform(s_vec<T1> &v_input, s_vec<T2> &v_output, std::size_t const in_begin, std::size_t const in_end,
+    void transform(d_vec<T1> &v_input, d_vec<T2> &v_output, std::size_t const in_begin, std::size_t const in_end,
             std::size_t const out_begin, F const &functor) noexcept {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);

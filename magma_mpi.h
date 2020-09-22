@@ -44,7 +44,7 @@ public:
     enum Op { undefined, max, min, sum };
 
     template<typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void allToAll(s_vec<T> &v_sendbuf, s_vec<T> &v_recvbuf) {
+    void allToAll(d_vec<T> &v_sendbuf, d_vec<T> &v_recvbuf) {
 #ifdef MPI_ON
         v_recvbuf.resize(v_sendbuf.size() * (n_nodes-1));
         auto type = inferType(v_sendbuf);
@@ -54,7 +54,7 @@ public:
     }
 
     template<typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void allReduce(s_vec<T> &v_sendbuf, std::vector<T> &v_recvbuf, int const size_per_node,
+    void allReduce(d_vec<T> &v_sendbuf, std::vector<T> &v_recvbuf, int const size_per_node,
             Op op) noexcept {
 #ifdef MPI_ON
         int iOp = undefined;

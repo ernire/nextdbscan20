@@ -18,7 +18,7 @@
 #include "magma_util.h"
 
 template <typename T>
-using s_vec = std::vector<T>;
+using d_vec = std::vector<T>;
 template <typename T>
 using h_vec = std::vector<T>;
 template <typename T>
@@ -27,7 +27,7 @@ using d_vec = std::vector<T>;
 namespace exa {
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void fill(s_vec<T> &v, std::size_t const begin, std::size_t const end, T const val) noexcept {
+    void fill(d_vec<T> &v, std::size_t const begin, std::size_t const end, T const val) noexcept {
 #ifdef DEBUG_ON
         assert(begin <= end);
 #endif
@@ -38,7 +38,7 @@ namespace exa {
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void iota(s_vec<T> &v, std::size_t const begin, std::size_t const end, std::size_t const startval) noexcept {
+    void iota(d_vec<T> &v, std::size_t const begin, std::size_t const end, std::size_t const startval) noexcept {
 #ifdef DEBUG_ON
         assert(begin <= end);
 #endif
@@ -49,7 +49,7 @@ namespace exa {
     }
 
     template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    std::size_t count_if(s_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) {
+    std::size_t count_if(d_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) {
 #ifdef DEBUG_ON
         assert(begin <= end);
 #endif
@@ -63,13 +63,13 @@ namespace exa {
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void exclusive_scan(s_vec<T> &v_input, s_vec<T> &v_output, std::size_t const in_begin, std::size_t const in_end,
+    void exclusive_scan(d_vec<T> &v_input, d_vec<T> &v_output, std::size_t const in_begin, std::size_t const in_end,
             std::size_t const out_begin, T const init) noexcept {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
 #endif
-        s_vec<T> v_t_size;
-        s_vec<T> v_t_offset;
+        d_vec<T> v_t_size;
+        d_vec<T> v_t_offset;
         #pragma omp parallel
         {
             int tid = omp_get_thread_num();
@@ -77,8 +77,8 @@ namespace exa {
             {
                 v_t_size.resize(omp_get_num_threads(), 0);
             }
-            int t_size = magma_util::get_block_size(tid, in_end - in_begin, v_t_size.size());
-            int t_offset = magma_util::get_block_offset(tid, in_end - in_begin, v_t_size.size());
+            int t_size = magma_util::get_block_size(tid, static_cast<int>(in_end - in_begin), static_cast<int>(v_t_size.size()));
+            int t_offset = magma_util::get_block_offset(tid, static_cast<int>(in_end - in_begin), static_cast<int>(v_t_size.size()));
             T size_sum = 0;
             for (int i = t_offset; i < t_offset + t_size; ++i) {
                 size_sum += v_input[i + in_begin];
@@ -101,13 +101,13 @@ namespace exa {
     }
 
     template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void copy_if(s_vec<T> &v_input, s_vec<T> &v_output, std::size_t const in_begin, std::size_t const in_end,
+    void copy_if(d_vec<T> &v_input, d_vec<T> &v_output, std::size_t const in_begin, std::size_t const in_end,
             std::size_t const out_begin, F const &functor) noexcept {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
 #endif
-        s_vec<T> v_copy_size(v_input.size() - in_begin, 0);
-        s_vec<T> v_copy_offset(v_copy_size.size());
+        d_vec<T> v_copy_size(v_input.size() - in_begin, 0);
+        d_vec<T> v_copy_offset(v_copy_size.size());
         #pragma omp parallel for
         for (int i = 0; i < v_copy_size.size(); ++i) {
             if (functor(v_input[i+in_begin])) {
@@ -130,7 +130,7 @@ namespace exa {
     }
 
     template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void for_each(s_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) {
+    void for_each(d_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) {
 #ifdef DEBUG_ON
         assert(begin <= end);
 #endif
@@ -141,11 +141,11 @@ namespace exa {
     }
 
     template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    std::pair<T, T> minmax_element(s_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) noexcept {
+    std::pair<T, T> minmax_element(d_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) noexcept {
 #ifdef DEBUG_ON
         assert(begin <= end);
 #endif
-        s_vec<T> v_t_min_max;
+        d_vec<T> v_t_min_max;
         T min, max;
         #pragma omp parallel
         {
@@ -176,7 +176,7 @@ namespace exa {
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    T reduce(s_vec<T> &v, std::size_t const begin, std::size_t const end, T const startval) {
+    T reduce(d_vec<T> &v, std::size_t const begin, std::size_t const end, T const startval) {
 #ifdef DEBUG_ON
         assert(begin <= end);
         assert((end - begin) <= (v.size() - begin));
@@ -190,7 +190,7 @@ namespace exa {
     }
 
     template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void sort(s_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) noexcept {
+    void sort(d_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) noexcept {
 #ifdef DEBUG_ON
         assert(begin <= end);
         assert((end - begin) <= (v.size() - begin));
@@ -200,14 +200,14 @@ namespace exa {
             std::sort(std::next(v.begin(), begin), std::next(v.begin(), end), functor);
             return;
         }
-        s_vec<T> v_tmp(v.size(), -1);
-        s_vec<T> v_samples;
-        s_vec<int> v_bucket_size;
-        s_vec<int> v_bucket_offset;
-        s_vec<int> v_par_bucket_size;
-        s_vec<int> v_par_bucket_offset;
+        d_vec<T> v_tmp(v.size(), -1);
+        d_vec<T> v_samples;
+        d_vec<int> v_bucket_size;
+        d_vec<int> v_bucket_offset;
+        d_vec<int> v_par_bucket_size;
+        d_vec<int> v_par_bucket_offset;
         // optimize to only use needed space
-        s_vec<int> v_bucket_index(v.size());
+        d_vec<int> v_bucket_index(v.size());
         int n_thread = 0, n_bucket = 0;
         #pragma omp parallel
         {
@@ -227,11 +227,11 @@ namespace exa {
                 v_par_bucket_size.resize(n_bucket * n_thread, -1);
                 v_par_bucket_offset.resize(n_bucket * n_thread);
             }
-            s_vec<int> v_t_size(n_bucket, 0);
-            s_vec<int> v_t_offset(n_bucket);
+            d_vec<int> v_t_size(n_bucket, 0);
+            d_vec<int> v_t_offset(n_bucket);
             int tid = omp_get_thread_num();
-            int t_size = magma_util::get_block_size(tid, end - begin, n_thread);
-            int t_offset = magma_util::get_block_offset(tid, end - begin, n_thread);
+            int t_size = magma_util::get_block_size(tid, static_cast<int>(end - begin), n_thread);
+            int t_offset = magma_util::get_block_offset(tid, static_cast<int>(end - begin), n_thread);
             for (std::size_t i = t_offset; i < t_offset + t_size; ++i) {
                 v_bucket_index[i + begin] = std::lower_bound(v_samples.begin(), v_samples.end(), v[i + begin], functor)
                         - v_samples.begin();
@@ -272,7 +272,7 @@ namespace exa {
     }
 
     template <typename T1, typename T2, typename F, typename std::enable_if<std::is_arithmetic<T1>::value>::type* = nullptr>
-    void unique(s_vec<T1> &v_input, s_vec<T2> &v_output, std::size_t const in_begin, std::size_t const in_end,
+    void unique(d_vec<T1> &v_input, d_vec<T2> &v_output, std::size_t const in_begin, std::size_t const in_end,
             std::size_t const out_begin, F const &functor) {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
@@ -282,7 +282,7 @@ namespace exa {
     }
 
     template <typename T1, typename T2, typename F, typename std::enable_if<std::is_arithmetic<T1>::value>::type* = nullptr>
-    void transform(s_vec<T1> &v_input, s_vec<T2> &v_output, std::size_t const in_begin, std::size_t const in_end,
+    void transform(d_vec<T1> &v_input, d_vec<T2> &v_output, std::size_t const in_begin, std::size_t const in_end,
             std::size_t const out_begin, F const &functor) noexcept {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);

@@ -4,42 +4,44 @@
 
 #include <iostream>
 #include <unordered_map>
+#include <thrust/extrema.h>
+#include <thrust/pair.h>
+#include <thrust/sequence.h>
+#include <thrust/sort.h>
+#include <thrust/iterator/counting_iterator.h>
+#include <thrust/iterator/transform_iterator.h>
+#include <thrust/functional.h>
 #include "magma_util.h"
 #include "nc_tree.h"
-#ifdef OMP_ON
-#include "magma_exa_omp.h"
-#else
-#include "magma_exa.h"
-#endif
-
 
 void nc_tree::determine_data_bounds() noexcept {
     v_min_bounds.resize(n_dim);
     v_max_bounds.resize(n_dim);
+    thrust::counting_iterator<int> it_cnt_begin(0);
+    thrust::counting_iterator<int> it_cnt_end = it_cnt_begin + n_coord;
 
-//    d_vec<int> v_coord_id(n_coord);
-    v_coord_id.resize(n_coord);
-    exa::iota(v_coord_id, 0, v_coord_id.size(), 0);
-    exa::iota(v_min_bounds, 0, v_min_bounds.size(), 0);
-    auto const i_begin = v_coord.begin();
+    auto const i_begin = v_device_coord.begin();
     for (int d = 0; d < n_dim; ++d) {
-        auto minmax = exa::minmax_element(v_coord_id, 0, v_coord_id.size(),
-                [=](auto const i1, auto const i2) -> bool {
-                    return *(i_begin+((i1 * n_dim) + d)) < *(i_begin+((i2 * n_dim) + d));
-//                    return v_coord[v1 * n_dim + d] < v_coord[v2 * n_dim + d];
-                });
-        v_min_bounds[d] = v_coord[(minmax.first * n_dim) + d];
-        v_max_bounds[d] = v_coord[(minmax.second * n_dim) + d];
+        auto it_trans_begin = thrust::make_transform_iterator(it_cnt_begin, (thrust::placeholders::_1 * n_dim) + d);
+        auto it_trans_end = thrust::make_transform_iterator(it_cnt_end, (thrust::placeholders::_1 * n_dim) + d);
+        auto it_perm_begin = thrust::make_permutation_iterator(v_device_coord.begin(), it_trans_begin);
+        auto it_perm_end = thrust::make_permutation_iterator(v_device_coord.end(), it_trans_end);
+        auto minmax = thrust::minmax_element(it_perm_begin, it_perm_end);
+        v_min_bounds[d] = *minmax.first;
+        v_max_bounds[d] = *minmax.second;
     }
     v_dim_order.resize(n_dim);
-    exa::iota(v_dim_order, 0, v_dim_order.size(), 0);
-    exa::sort(v_dim_order, 0, v_dim_order.size(), [&](int const &d1, int const &d2) -> bool {
-       return (v_max_bounds[d1] - v_min_bounds[d1]) > (v_max_bounds[d2] - v_min_bounds[d2]);
+    thrust::sequence(v_dim_order.begin(), v_dim_order.end(), 0);
+    auto const i_min_begin = v_min_bounds.begin();
+    auto const i_max_begin = v_max_bounds.begin();
+    thrust::sort(v_dim_order.begin(), v_dim_order.end(), [=]__device__(int const &d1, int const &d2) -> bool {
+        return (*(i_max_begin+d1) - *(i_min_begin+d1)) > (*(i_max_begin+d2) - *(i_min_begin+d2));
     });
 }
 
 void nc_tree::index_into_cells(s_vec<int> &v_point_id, s_vec<int> &v_cell_size, s_vec<int> &v_cell_offset,
         s_vec<int> &v_cell_index, int const dim_part_size) noexcept {
+    /*
     auto v_point_cell_index = v_point_id;
     auto v_iota = v_point_id;
     exa::transform(v_point_cell_index, v_point_cell_index, 0, v_point_cell_index.size(), 0,
@@ -133,10 +135,11 @@ void nc_tree::collect_cells_in_reach(s_vec<int> &v_point_index, s_vec<int> &v_ce
     exa::copy_if(v_point_reach_full, v_cell_reach, 0, v_point_reach_full.size(), 0, [&](int const &val) -> bool {
         return val >= 0;
     });
-
+    */
 }
 
 void nc_tree::process_points(s_vec<int> &v_point_id, s_vec<float> &v_point_data) noexcept {
+    /*
     std::cout << "id size: " << v_point_id.size() << " : " << v_point_data.size() << std::endl;
     s_vec<int> v_point_iota(v_point_id.size());
     exa::iota(v_point_iota, 0, v_point_iota.size(), 0);
@@ -152,11 +155,11 @@ void nc_tree::process_points(s_vec<int> &v_point_id, s_vec<float> &v_point_data)
     // calculate cell index
     auto v_point_index = v_point_iota;
     exa::transform(v_point_index, v_point_index, 0, v_point_index.size(), 0,
-        [&](int const &id) -> int {
-            return cell_index(v_point_data[id * n_dim + v_dim_order[0]], v_min_bounds[v_dim_order[0]], e)
-                   + (cell_index(v_point_data[id * n_dim + v_dim_order[1]],
-                           v_min_bounds[v_dim_order[1]], e) * v_dim_part_size[0]);
-        });
+            [&](int const &id) -> int {
+                return cell_index(v_point_data[id * n_dim + v_dim_order[0]], v_min_bounds[v_dim_order[0]], e)
+                       + (cell_index(v_point_data[id * n_dim + v_dim_order[1]],
+                        v_min_bounds[v_dim_order[1]], e) * v_dim_part_size[0]);
+            });
     // obtain reach
     s_vec<int> v_point_cells_in_reach(v_point_iota.size());
     s_vec<int> v_point_cell_reach_offset(v_point_iota.size());
@@ -180,9 +183,9 @@ void nc_tree::process_points(s_vec<int> &v_point_id, s_vec<float> &v_point_data)
     s_vec<int> v_hit_table_id_1(table_size, -1);
     s_vec<int> v_hit_table_id_2(table_size, -1);
     exa::for_each(v_point_iota, 0, v_point_iota.size(), [&](int const &i) -> void {
-       std::fill(std::next(v_hit_table_id_1.begin(), v_points_in_reach_offset[i]),
-               std::next(v_hit_table_id_1.begin(), v_points_in_reach_offset[i] + v_points_in_reach_size[i]),
-               i);
+        std::fill(std::next(v_hit_table_id_1.begin(), v_points_in_reach_offset[i]),
+                std::next(v_hit_table_id_1.begin(), v_points_in_reach_offset[i] + v_points_in_reach_size[i]),
+                i);
     });
     // Make cell offset and size
     s_vec<int> v_cell_reach_size(v_point_cells_in_reach.size());
@@ -191,8 +194,8 @@ void nc_tree::process_points(s_vec<int> &v_point_id, s_vec<float> &v_point_data)
     exa::iota(v_cell_reach_iota, 0, v_cell_reach_iota.size(), 0);
     exa::transform(v_point_cells_in_reach, v_cell_reach_size, 0, v_point_cells_in_reach.size(), 0,
             [&](int const &c_id) -> int {
-       return v_coord_cell_size[c_id];
-    });
+                return v_coord_cell_size[c_id];
+            });
     exa::exclusive_scan(v_cell_reach_size, v_cell_reach_offset, 0, v_cell_reach_size.size(), 0, 0);
     exa::for_each(v_cell_reach_iota, 0, v_cell_reach_iota.size(), [&](int const &i) -> void {
         for (int j = 0; j < v_cell_reach_size[i]; ++j) {
@@ -289,10 +292,11 @@ void nc_tree::process_points(s_vec<int> &v_point_id, s_vec<float> &v_point_data)
             }
         }
     });
-
+    */
 }
 
 void nc_tree::process6() noexcept {
+    /*
     v_dim_part_size.resize(2);
     v_dim_part_size[0] = (v_max_bounds[v_dim_order[0]] - v_min_bounds[v_dim_order[0]]) / e + 1;
     v_dim_part_size[1] = (v_max_bounds[v_dim_order[1]] - v_min_bounds[v_dim_order[1]]) / e + 1;
@@ -351,4 +355,5 @@ void nc_tree::process6() noexcept {
         }
     }
     std::cout << "Total number of clusters: " << v_cluster_map.size();
+     */
 }

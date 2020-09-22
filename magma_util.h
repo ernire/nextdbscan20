@@ -23,9 +23,10 @@ using random_distribution = std::conditional_t<std::is_integral<T>::value,
 
 namespace magma_util {
 
-    int get_block_size(int block_index, int number_of_samples, int number_of_blocks) noexcept {
-        int block = (number_of_samples / number_of_blocks);
-        int reserve = number_of_samples % number_of_blocks;
+    template<class T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    int get_block_size(T block_index, T number_of_samples, T number_of_blocks) noexcept {
+        T block = (number_of_samples / number_of_blocks);
+        T reserve = number_of_samples % number_of_blocks;
         //    Some processes will need one more sample if the data size does not fit completely
         if (reserve > 0 && block_index < reserve) {
             return block + 1;
@@ -33,9 +34,10 @@ namespace magma_util {
         return block;
     }
 
-    int get_block_offset(int block_index, int number_of_samples, int number_of_blocks) noexcept {
+    template<class T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    int get_block_offset(T block_index, T number_of_samples, T number_of_blocks) noexcept {
         int offset = 0;
-        for (int i = 0; i < block_index; i++) {
+        for (T i = 0; i < block_index; i++) {
             offset += get_block_size(i, number_of_samples, number_of_blocks);
         }
         return offset;
