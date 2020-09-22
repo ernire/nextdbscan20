@@ -49,9 +49,13 @@ nextdbscan::result nextdbscan::start(int const m, float const e, int const n_thr
     #endif
     });
 
+    magma_util::measure_duration("Initialize cells: ", mpi.rank == 0, [&]() -> void {
+        nc.initialize_cells();
+    });
 
-
-//    nc.process6();
+    magma_util::measure_duration("Process: ", mpi.rank == 0, [&]() -> void {
+        nc.process6();
+    });
 
     auto time_end = std::chrono::high_resolution_clock::now();
     std::cout << std::endl;

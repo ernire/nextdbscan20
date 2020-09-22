@@ -107,6 +107,8 @@ public:
 
     void determine_data_bounds() noexcept;
 
+    void initialize_cells() noexcept;
+
     void index_into_cells(s_vec<int> &v_point_id, s_vec<int> &v_cell_size, s_vec<int> &v_cell_offset,
             s_vec<int> &v_cell_index, int const dim_part_size) noexcept;
 //

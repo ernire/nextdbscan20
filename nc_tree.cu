@@ -15,11 +15,12 @@
 #include "nc_tree.h"
 
 void nc_tree::determine_data_bounds() noexcept {
+    v_coord_id.resize(n_coord);
+    thrust::sequence(v_coord_id.begin(), v_coord_id.end(), 0);
     v_min_bounds.resize(n_dim);
     v_max_bounds.resize(n_dim);
     thrust::counting_iterator<int> it_cnt_begin(0);
     thrust::counting_iterator<int> it_cnt_end = it_cnt_begin + n_coord;
-
     auto const i_begin = v_device_coord.begin();
     for (int d = 0; d < n_dim; ++d) {
         auto it_trans_begin = thrust::make_transform_iterator(it_cnt_begin, (thrust::placeholders::_1 * n_dim) + d);

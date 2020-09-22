@@ -17,7 +17,6 @@ void nc_tree::determine_data_bounds() noexcept {
     v_min_bounds.resize(n_dim);
     v_max_bounds.resize(n_dim);
 
-//    d_vec<int> v_coord_id(n_coord);
     v_coord_id.resize(n_coord);
     exa::iota(v_coord_id, 0, v_coord_id.size(), 0);
     exa::iota(v_min_bounds, 0, v_min_bounds.size(), 0);
@@ -282,7 +281,7 @@ void nc_tree::process_points(s_vec<int> &v_point_id, s_vec<float> &v_point_data)
                     v_coord_cluster[id2] = v_point_cluster[i];
                 }
                 else if (v_coord_cluster[id2] != v_point_cluster[i] && v_coord_nn[id2] >= m) {
-                    std::cout << "CHECKPINT!!" << std::endl;
+//                    std::cout << "CHECKPINT!!" << std::endl;
 //                    assert(v_point_cluster[i] < v_coord_cluster[id2]);
 //                    v_coord_cluster[id2] = v_point_cluster[i];
                 }
@@ -293,20 +292,13 @@ void nc_tree::process_points(s_vec<int> &v_point_id, s_vec<float> &v_point_data)
 }
 
 void nc_tree::process6() noexcept {
-    v_dim_part_size.resize(2);
-    v_dim_part_size[0] = (v_max_bounds[v_dim_order[0]] - v_min_bounds[v_dim_order[0]]) / e + 1;
-    v_dim_part_size[1] = (v_max_bounds[v_dim_order[1]] - v_min_bounds[v_dim_order[1]]) / e + 1;
-    magma_util::print_v("v_dim_part_size: ", &v_dim_part_size[0], v_dim_part_size.size());
-    if (static_cast<uint64_t>(v_dim_part_size[0]) * v_dim_part_size[1] > INT32_MAX) {
-        std::cerr << "FAIL: The epsilon value is too low and therefore not supported by the current version for the"
-                     " input dataset" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    magma_util::measure_duration("Cell Indexing: ", true, [&]() -> void {
-        index_into_cells(v_coord_id, v_coord_cell_size, v_coord_cell_offset, v_coord_cell_index, v_dim_part_size[0]);
-    });
+
+//    magma_util::measure_duration("Cell Indexing: ", true, [&]() -> void {
+//        index_into_cells(v_coord_id, v_coord_cell_size, v_coord_cell_offset, v_coord_cell_index, v_dim_part_size[0]);
+//    });
     s_vec<int> v_point_id(v_coord_id.size());
     exa::iota(v_point_id, 0, v_point_id.size(), 0);
+
     s_vec<int> v_id_chunk;
     s_vec<float> v_data_chunk;
     magma_util::measure_duration("Process Points: ", true, [&]() -> void {
@@ -350,5 +342,49 @@ void nc_tree::process6() noexcept {
             }
         }
     }
-    std::cout << "Total number of clusters: " << v_cluster_map.size();
+    std::cout << "Total number of clusters: " << v_cluster_map.size() << std::endl;
+}
+
+void nc_tree::initialize_cells() noexcept {
+    v_dim_part_size.resize(2);
+    v_dim_part_size[0] = (v_max_bounds[v_dim_order[0]] - v_min_bounds[v_dim_order[0]]) / e + 1;
+    v_dim_part_size[1] = (v_max_bounds[v_dim_order[1]] - v_min_bounds[v_dim_order[1]]) / e + 1;
+    magma_util::print_v("v_dim_part_size: ", &v_dim_part_size[0], v_dim_part_size.size());
+    if (static_cast<uint64_t>(v_dim_part_size[0]) * v_dim_part_size[1] > INT32_MAX) {
+        std::cerr << "FAIL: The epsilon value is too low and therefore not supported by the current version for the"
+                     " input dataset" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    auto v_point_cell_index = v_coord_id;
+    auto v_iota = v_coord_id;
+    exa::transform(v_point_cell_index, v_point_cell_index, 0, v_point_cell_index.size(), 0,
+            [&](int const &id) -> int {
+                return cell_index(v_coord[id * n_dim + v_dim_order[0]], v_min_bounds[v_dim_order[0]], e)
+                       + (cell_index(v_coord[id * n_dim + v_dim_order[1]], v_min_bounds[v_dim_order[1]], e) * v_dim_part_size[0]);
+            });
+    exa::sort(v_coord_id, 0, v_coord_id.size(), [&](auto const &i1, auto const &i2) -> bool {
+        if (v_point_cell_index[i1] < v_point_cell_index[i2])
+            return true;
+        if (v_point_cell_index[i1] > v_point_cell_index[i2])
+            return false;
+        return false;
+    });
+    exa::unique(v_iota, v_coord_cell_offset, 0, v_iota.size(), 0, [&](auto const &i) -> bool {
+        if (v_point_cell_index[v_coord_id[i]] != v_point_cell_index[v_coord_id[i-1]])
+            return true;
+        return false;
+    });
+    v_coord_cell_size.resize(v_coord_cell_offset.size());
+    exa::iota(v_coord_cell_size, 0, v_coord_cell_size.size(), 0);
+    exa::transform(v_coord_cell_size, v_coord_cell_size, 0, v_coord_cell_size.size()-1, 0,
+            [&](auto const &i) -> int {
+                return  v_coord_cell_offset[i+1] - v_coord_cell_offset[i];
+            });
+    v_coord_cell_size[v_coord_cell_size.size()-1] = n_coord - v_coord_cell_offset[v_coord_cell_size.size()-1];
+    v_iota.resize(v_coord_cell_offset.size());
+    v_coord_cell_index = v_iota;
+    exa::transform(v_coord_cell_index, v_coord_cell_index, 0, v_coord_cell_index.size(), 0, [&](int const &i) -> int {
+        return v_point_cell_index[v_coord_id[v_coord_cell_offset[i]]];
+    });
 }
