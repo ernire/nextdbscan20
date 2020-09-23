@@ -32,6 +32,7 @@ nextdbscan::result nextdbscan::start(int const m, float const e, int const n_thr
 
     auto time_start = std::chrono::high_resolution_clock::now();
     nc_tree nc(v_coord, m, e, n_dim);
+    v_coord.clear();
 
     magma_util::measure_duration("Determine Data Boundaries: ", mpi.rank == 0, [&]() -> void {
         nc.determine_data_bounds();
@@ -39,22 +40,27 @@ nextdbscan::result nextdbscan::start(int const m, float const e, int const n_thr
     //            mpi.allReduce(nc.v_min_bounds, nc.v_min_bounds, n_dim, magmaMPI::min);
     //            mpi.allReduce(nc.v_max_bounds, nc.v_max_bounds, n_dim, magmaMPI::max);
         }
-    #ifdef DEBUG_ON
-        h_vec<float> v_min_bounds = nc.v_min_bounds;
-        h_vec<float> v_max_bounds = nc.v_max_bounds;
-        h_vec<int> v_dim_order = nc.v_dim_order;
-        magma_util::print_v("min bounds: " , &v_min_bounds[0], v_min_bounds.size());
-        magma_util::print_v("max bounds: " , &v_max_bounds[0], v_max_bounds.size());
-        magma_util::print_v("dim order: ", &v_dim_order[0], v_dim_order.size());
-    #endif
     });
+#ifdef DEBUG_ON
+    h_vec<float> v_min_bounds = nc.v_min_bounds;
+    h_vec<float> v_max_bounds = nc.v_max_bounds;
+    h_vec<int> v_dim_order = nc.v_dim_order;
+    magma_util::print_v("min bounds: " , &v_min_bounds[0], v_min_bounds.size());
+    magma_util::print_v("max bounds: " , &v_max_bounds[0], v_max_bounds.size());
+    magma_util::print_v("dim order: ", &v_dim_order[0], v_dim_order.size());
+#endif
 
     magma_util::measure_duration("Initialize cells: ", mpi.rank == 0, [&]() -> void {
         nc.initialize_cells();
     });
+    std::cout << "number of cells: " << nc.v_coord_cell_size.size() << std::endl;
+#ifdef DEBUG_ON
+    h_vec<int> v_dim_part_size = nc.v_dim_part_size;
+    magma_util::print_v("dim part size: " , &v_dim_part_size[0], v_dim_part_size.size());
+#endif
 
     magma_util::measure_duration("Process: ", mpi.rank == 0, [&]() -> void {
-        nc.process6();
+//        nc.process6();
     });
 
     auto time_end = std::chrono::high_resolution_clock::now();

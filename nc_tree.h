@@ -84,13 +84,13 @@ public:
     d_vec<int> v_dim_order;
     d_vec<int> v_coord_id;
     // TODO optimize sizes
-    s_vec<int> v_coord_cell_index;
-    s_vec<int> v_coord_cell_offset;
-    s_vec<int> v_coord_cell_size;
-    s_vec<int> v_coord_nn;
-    s_vec<int> v_coord_status;
-    s_vec<int> v_coord_cluster;
-    s_vec<int> v_dim_part_size;
+    d_vec<int> v_coord_cell_index;
+    d_vec<int> v_coord_cell_offset;
+    d_vec<int> v_coord_cell_size;
+    d_vec<int> v_coord_nn;
+    d_vec<int> v_coord_status;
+    d_vec<int> v_coord_cluster;
+    d_vec<int> v_dim_part_size;
     int cluster_size = 0;
 
     explicit nc_tree(h_vec<float> &v_coord, int const m, float const e, int const n_dim) : v_coord(std::move(v_coord)),
@@ -98,9 +98,6 @@ public:
 #ifdef CUDA_ON
         v_device_coord = v_coord;
 #endif
-        v_coord_nn.resize(n_coord, 0);
-        v_coord_cluster.resize(n_coord, NO_CLUSTER);
-        v_coord_status.resize(n_coord, NOT_PROCESSED);
     }
 
     void process6() noexcept;

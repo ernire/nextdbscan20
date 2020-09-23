@@ -14,6 +14,21 @@
 #include "magma_util.h"
 #include "nc_tree.h"
 
+struct pack {
+    template<typename Tuple>
+    __device__ __host__ int64_t operator()(const Tuple &t) {
+        return( static_cast<int64_t>( thrust::get<0>(t) ) << 32 ) | thrust::get<1>(t);
+    }
+};
+
+struct unpack {
+    __device__ __host__  thrust::tuple<int,int> operator()(int64_t p) {
+        int32_t d = static_cast<int32_t>(p >> 32);
+        int32_t s = static_cast<int32_t>(p & 0xffffffff);
+        return thrust::make_tuple(d, s);
+    }
+};
+
 void nc_tree::determine_data_bounds() noexcept {
     v_coord_id.resize(n_coord);
     thrust::sequence(v_coord_id.begin(), v_coord_id.end(), 0);
@@ -39,6 +54,64 @@ void nc_tree::determine_data_bounds() noexcept {
         return (*(i_max_begin+d1) - *(i_min_begin+d1)) > (*(i_max_begin+d2) - *(i_min_begin+d2));
     });
 }
+
+void nc_tree::initialize_cells() noexcept {
+    v_dim_part_size.resize(2);
+    v_dim_part_size[0] = (v_max_bounds[v_dim_order[0]] - v_min_bounds[v_dim_order[0]]) / e + 1;
+    v_dim_part_size[1] = (v_max_bounds[v_dim_order[1]] - v_min_bounds[v_dim_order[1]]) / e + 1;
+//    magma_util::print_v("v_dim_part_size: ", &v_dim_part_size[0], v_dim_part_size.size());
+    if (static_cast<uint64_t>(v_dim_part_size[0]) * v_dim_part_size[1] > INT32_MAX) {
+        std::cerr << "FAIL: The epsilon value is too low and therefore not supported by the current version for the"
+                     " input dataset" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+//    v_coord_cell_index.resize(v_coord_id.size());
+    d_vec<int> v_point_cell_index(v_coord_id.size());
+    auto const it_coords = v_device_coord.begin();
+    auto const dim_0 = v_dim_order[0];
+    auto const dim_1 = v_dim_order[1];
+    auto const bound_0 = v_min_bounds[dim_0];
+    auto const bound_1 = v_min_bounds[dim_0];
+    auto const mult = v_dim_part_size[0];
+    int const dim = n_dim;
+    float const ee = e;
+    thrust::transform(v_coord_id.begin(), v_coord_id.end(), v_point_cell_index.begin(), [=]__device__(int const &i) -> int {
+        return (int)( ( *(it_coords + (i * dim + dim_0)) - bound_0 ) / ee )
+            + (int)( ( *(it_coords + (i * dim + dim_1)) - bound_1 ) / ee ) * mult;
+    });
+    thrust::sort_by_key(v_point_cell_index.begin(), v_point_cell_index.end(), v_coord_id.begin());
+    thrust::counting_iterator<int> it_cnt_begin(0);
+    thrust::counting_iterator<int> it_cnt_end = it_cnt_begin + n_coord;
+    v_coord_cell_offset.resize(n_coord);
+    v_coord_cell_offset[0] = 0;
+    auto const it_index = v_point_cell_index.begin();
+    auto it = thrust::copy_if(it_cnt_begin + 1, it_cnt_end, v_coord_cell_offset.begin() + 1, [=]__device__(int const &i) -> bool {
+       return *(it_index + i - 1) != *(it_index + i);
+    });
+    v_coord_cell_offset.resize(thrust::distance(v_coord_cell_offset.begin(), it));
+    v_coord_cell_index.resize(v_coord_cell_offset.size());
+    v_coord_cell_size.resize(v_coord_cell_offset.size());
+    auto const it_offset = v_coord_cell_offset.begin();
+    it_cnt_end = it_cnt_begin + v_coord_cell_offset.size();
+    thrust::transform(it_cnt_begin, it_cnt_end - 1, v_coord_cell_size.begin(), [=]__device__(int const &i) -> int {
+        return *(it_offset+i+1) - *(it_offset+i);
+    });
+    v_coord_cell_size[v_coord_cell_size.size()-1] = n_coord - v_coord_cell_offset[v_coord_cell_size.size()-1];
+    thrust::transform(it_cnt_begin, it_cnt_end, v_coord_cell_index.begin(), [=]__device__(int const &i) -> int {
+        return *(it_index + *(it_offset + i));
+    });
+//    int sum = 0;
+//    for (int i = 0; i < v_coord_cell_size.size(); ++i) {
+//        sum += v_coord_cell_size[i];
+//    }
+//    std::cout << "sum: " << sum << std::endl;
+//
+//
+    std::cout << "v_coord_cell_index begin: " <<  v_coord_cell_index[0] << ", " << v_coord_cell_index[1] << ", " << v_coord_cell_index[2] << std::endl;
+    std::cout << "v_coord_cell_index end: " <<  v_coord_cell_index[v_coord_cell_index.size()-1] << ", " <<
+        v_coord_cell_index[v_coord_cell_index.size()-2] << ", " << v_coord_cell_index[v_coord_cell_index.size()-3] << std::endl;
+}
+
 
 void nc_tree::index_into_cells(s_vec<int> &v_point_id, s_vec<int> &v_cell_size, s_vec<int> &v_cell_offset,
         s_vec<int> &v_cell_index, int const dim_part_size) noexcept {
@@ -139,7 +212,8 @@ void nc_tree::collect_cells_in_reach(s_vec<int> &v_point_index, s_vec<int> &v_ce
     */
 }
 
-void nc_tree::process_points(s_vec<int> &v_point_id, s_vec<float> &v_point_data) noexcept {
+void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data) noexcept {
+
     /*
     std::cout << "id size: " << v_point_id.size() << " : " << v_point_data.size() << std::endl;
     s_vec<int> v_point_iota(v_point_id.size());

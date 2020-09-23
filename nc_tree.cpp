@@ -293,6 +293,12 @@ void nc_tree::process_points(s_vec<int> &v_point_id, s_vec<float> &v_point_data)
 
 void nc_tree::process6() noexcept {
 
+
+    // TODO
+    v_coord_nn.resize(n_coord, 0);
+    v_coord_cluster.resize(n_coord, NO_CLUSTER);
+    v_coord_status.resize(n_coord, NOT_PROCESSED);
+
 //    magma_util::measure_duration("Cell Indexing: ", true, [&]() -> void {
 //        index_into_cells(v_coord_id, v_coord_cell_size, v_coord_cell_offset, v_coord_cell_index, v_dim_part_size[0]);
 //    });
@@ -349,7 +355,6 @@ void nc_tree::initialize_cells() noexcept {
     v_dim_part_size.resize(2);
     v_dim_part_size[0] = (v_max_bounds[v_dim_order[0]] - v_min_bounds[v_dim_order[0]]) / e + 1;
     v_dim_part_size[1] = (v_max_bounds[v_dim_order[1]] - v_min_bounds[v_dim_order[1]]) / e + 1;
-    magma_util::print_v("v_dim_part_size: ", &v_dim_part_size[0], v_dim_part_size.size());
     if (static_cast<uint64_t>(v_dim_part_size[0]) * v_dim_part_size[1] > INT32_MAX) {
         std::cerr << "FAIL: The epsilon value is too low and therefore not supported by the current version for the"
                      " input dataset" << std::endl;
@@ -364,12 +369,9 @@ void nc_tree::initialize_cells() noexcept {
                        + (cell_index(v_coord[id * n_dim + v_dim_order[1]], v_min_bounds[v_dim_order[1]], e) * v_dim_part_size[0]);
             });
     exa::sort(v_coord_id, 0, v_coord_id.size(), [&](auto const &i1, auto const &i2) -> bool {
-        if (v_point_cell_index[i1] < v_point_cell_index[i2])
-            return true;
-        if (v_point_cell_index[i1] > v_point_cell_index[i2])
-            return false;
-        return false;
+        return v_point_cell_index[i1] < v_point_cell_index[i2];
     });
+    std::cout << v_coord_id[0] << " : " << v_coord_id[1] << std::endl;
     exa::unique(v_iota, v_coord_cell_offset, 0, v_iota.size(), 0, [&](auto const &i) -> bool {
         if (v_point_cell_index[v_coord_id[i]] != v_point_cell_index[v_coord_id[i-1]])
             return true;
@@ -387,4 +389,8 @@ void nc_tree::initialize_cells() noexcept {
     exa::transform(v_coord_cell_index, v_coord_cell_index, 0, v_coord_cell_index.size(), 0, [&](int const &i) -> int {
         return v_point_cell_index[v_coord_id[v_coord_cell_offset[i]]];
     });
+
+    std::cout << "v_coord_cell_index begin: " <<  v_coord_cell_index[0] << ", " << v_coord_cell_index[1] << v_coord_cell_index[2] << std::endl;
+    std::cout << "v_coord_cell_index end: " <<  v_coord_cell_index[v_coord_cell_index.size()-1] << ", " <<
+              v_coord_cell_index[v_coord_cell_index.size()-2] << v_coord_cell_index[v_coord_cell_index.size()-3] << std::endl;
 }
