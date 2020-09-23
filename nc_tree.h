@@ -106,6 +106,8 @@ public:
 
     void initialize_cells() noexcept;
 
+    void index_points(d_vec<int> &v_id, d_vec<float> &v_data, d_vec<int> &v_index) noexcept;
+
     void index_into_cells(s_vec<int> &v_point_id, s_vec<int> &v_cell_size, s_vec<int> &v_cell_offset,
             s_vec<int> &v_cell_index, int const dim_part_size) noexcept;
 //

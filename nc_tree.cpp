@@ -411,6 +411,10 @@ void nc_tree::process6() noexcept {
     std::cout << "Total number of clusters: " << v_cluster_map.size() << std::endl;
 }
 
+void nc_tree::index_points(d_vec<int> &v_id, d_vec<float> &v_data, d_vec<int> &v_index) noexcept {
+
+}
+
 void nc_tree::initialize_cells() noexcept {
     v_dim_part_size.resize(2);
     v_dim_part_size[0] = (v_max_bounds[v_dim_order[0]] - v_min_bounds[v_dim_order[0]]) / e + 1;

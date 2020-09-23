@@ -55,6 +55,21 @@ void nc_tree::determine_data_bounds() noexcept {
     });
 }
 
+void nc_tree::index_points(d_vec<int> &v_id, d_vec<float> &v_data, d_vec<int> &v_index) noexcept {
+    auto const it_coords = v_data.begin();
+    auto const dim_0 = v_dim_order[0];
+    auto const dim_1 = v_dim_order[1];
+    auto const bound_0 = v_min_bounds[dim_0];
+    auto const bound_1 = v_min_bounds[dim_0];
+    auto const mult = v_dim_part_size[0];
+    int const dim = n_dim;
+    float const ee = e;
+    thrust::transform(v_id.begin(), v_id.end(), v_index.begin(), [=]__device__(int const &i) -> int {
+        return (int)( ( *(it_coords + (i * dim + dim_0)) - bound_0 ) / ee )
+               + (int)( ( *(it_coords + (i * dim + dim_1)) - bound_1 ) / ee ) * mult;
+    });
+}
+
 void nc_tree::initialize_cells() noexcept {
     v_dim_part_size.resize(2);
     v_dim_part_size[0] = (v_max_bounds[v_dim_order[0]] - v_min_bounds[v_dim_order[0]]) / e + 1;
@@ -65,20 +80,10 @@ void nc_tree::initialize_cells() noexcept {
                      " input dataset" << std::endl;
         exit(EXIT_FAILURE);
     }
-//    v_coord_cell_index.resize(v_coord_id.size());
+    v_coord_cell_index.resize(v_coord_id.size());
     d_vec<int> v_point_cell_index(v_coord_id.size());
-    auto const it_coords = v_device_coord.begin();
-    auto const dim_0 = v_dim_order[0];
-    auto const dim_1 = v_dim_order[1];
-    auto const bound_0 = v_min_bounds[dim_0];
-    auto const bound_1 = v_min_bounds[dim_0];
-    auto const mult = v_dim_part_size[0];
-    int const dim = n_dim;
-    float const ee = e;
-    thrust::transform(v_coord_id.begin(), v_coord_id.end(), v_point_cell_index.begin(), [=]__device__(int const &i) -> int {
-        return (int)( ( *(it_coords + (i * dim + dim_0)) - bound_0 ) / ee )
-            + (int)( ( *(it_coords + (i * dim + dim_1)) - bound_1 ) / ee ) * mult;
-    });
+    index_points(v_coord_id, v_device_coord, v_point_cell_index);
+
     thrust::sort_by_key(v_point_cell_index.begin(), v_point_cell_index.end(), v_coord_id.begin());
     thrust::counting_iterator<int> it_cnt_begin(0);
     thrust::counting_iterator<int> it_cnt_end = it_cnt_begin + n_coord;
@@ -213,6 +218,13 @@ void nc_tree::collect_cells_in_reach(s_vec<int> &v_point_index, s_vec<int> &v_ce
 }
 
 void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data) noexcept {
+    auto const it_status = v_coord_status.begin();
+    thrust::for_each(v_point_id.begin(), v_point_id.end(), [=]__device__(int const &id) -> void {
+        if (id >= 0) {
+            // PROCESSED
+            *(it_status + id) = 1;
+        }
+    });
 
     /*
     std::cout << "id size: " << v_point_id.size() << " : " << v_point_data.size() << std::endl;
