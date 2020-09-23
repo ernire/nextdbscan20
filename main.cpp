@@ -64,10 +64,34 @@ int main(int argc, char** argv) {
 #ifdef OMP_ON
     omp_set_num_threads(n_thread);
 #endif
-    nextdbscan::start(m, e, n_thread, input_file, magmaMPI::build());
+    auto mpi = magmaMPI::build();
+    auto results = nextdbscan::start(m, e, n_thread, input_file, mpi);
 #ifdef MPI_ON
     MPI_Finalize();
 #endif
 
+    if (mpi.rank == 0) {
+        std::cout << std::endl;
+        std::cout << "Estimated clusters: " << results.clusters << std::endl;
+        std::cout << "Core Points: " << results.core_count << std::endl;
+        std::cout << "Noise Points: " << results.noise << std::endl;
+
+        /*
+        if (output_file.length() > 0) {
+            std::cout << "Writing output to " << output_file << std::endl;
+            std::ofstream os(output_file);
+            // TODO
+            for (int i = 0; i < results.n; ++i) {
+                os << results.point_clusters[i] << std::endl;
+            }
+//            for (auto &c : results.point_clusters) {
+//                os << c << '\n';
+//            }
+            os.flush();
+            os.close();
+            std::cout << "Done!" << std::endl;
+        }
+         */
+    }
     return 0;
 }

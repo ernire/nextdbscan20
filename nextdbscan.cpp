@@ -3,16 +3,10 @@
 //
 
 #include <iostream>
-#include <algorithm>
-#include <numeric>
-#include <cassert>
 #include <chrono>
-#include <omp.h>
-#include <cmath>
 #include "nextdbscan.h"
 #include "magma_input.h"
 #include "magma_util.h"
-
 
 nextdbscan::result nextdbscan::start(int const m, float const e, int const n_thread, std::string const &in_file,
         magmaMPI mpi) noexcept {
@@ -50,7 +44,7 @@ nextdbscan::result nextdbscan::start(int const m, float const e, int const n_thr
     magma_util::print_v("dim order: ", &v_dim_order[0], v_dim_order.size());
 #endif
 
-    magma_util::measure_duration("Initialize cells: ", mpi.rank == 0, [&]() -> void {
+    magma_util::measure_duration("Initialize Cells: ", mpi.rank == 0, [&]() -> void {
         nc.initialize_cells();
     });
     std::cout << "number of cells: " << nc.v_coord_cell_size.size() << std::endl;
@@ -59,8 +53,13 @@ nextdbscan::result nextdbscan::start(int const m, float const e, int const n_thr
     magma_util::print_v("dim part size: " , &v_dim_part_size[0], v_dim_part_size.size());
 #endif
 
-    magma_util::measure_duration("Process: ", mpi.rank == 0, [&]() -> void {
-//        nc.process6();
+    magma_util::measure_duration("Process Points: ", mpi.rank == 0, [&]() -> void {
+        nc.select_and_process();
+    });
+
+    auto result = nextdbscan::result();
+    magma_util::measure_duration("Collect Results: ", mpi.rank == 0, [&]() -> void {
+        nc.get_result_meta(result.core_count, result.noise, result.clusters, result.n);
     });
 
     auto time_end = std::chrono::high_resolution_clock::now();
@@ -69,5 +68,5 @@ nextdbscan::result nextdbscan::start(int const m, float const e, int const n_thr
               << std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count()
               << " milliseconds\n";
 
-    return nextdbscan::result();
+    return result;
 }

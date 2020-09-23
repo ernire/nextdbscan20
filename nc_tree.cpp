@@ -135,7 +135,7 @@ void nc_tree::collect_cells_in_reach(s_vec<int> &v_point_index, s_vec<int> &v_ce
 
 }
 
-void nc_tree::process_points(s_vec<int> &v_point_id, s_vec<float> &v_point_data) noexcept {
+void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data) noexcept {
     std::cout << "id size: " << v_point_id.size() << " : " << v_point_data.size() << std::endl;
     s_vec<int> v_point_iota(v_point_id.size());
     exa::iota(v_point_iota, 0, v_point_iota.size(), 0);
@@ -291,14 +291,74 @@ void nc_tree::process_points(s_vec<int> &v_point_id, s_vec<float> &v_point_data)
 
 }
 
-void nc_tree::process6() noexcept {
+void nc_tree::get_result_meta(int &cores, int &noise, int &clusters, int &n) noexcept {
+    n = n_coord;
+    cores = 0;
+    for (auto const &nn : v_coord_nn) {
+        if (nn >= m) ++cores;
+    }
+//    std::cout << "cores: " << cores << std::endl;
 
+    int cluster_points = 0;
+    for (auto const &cluster : v_coord_cluster) {
+        if (cluster >= 0) ++cluster_points;
+    }
+    noise = n_coord - cluster_points;
+//    std::cout << "points in cluster: " << cluster_points << std::endl;
+//    std::cout << "points NOT in cluster: " << nc.v_coord_cluster.size()-cluster_points << std::endl;
 
-    // TODO
+    std::unordered_map<int, int> v_cluster_map;
+    for (int const &cluster : v_coord_cluster) {
+        if (cluster >= 0) {
+            auto elem = v_cluster_map.find(cluster);
+            if (elem == v_cluster_map.end()) {
+                v_cluster_map.insert(std::make_pair(cluster, 1));
+            } else {
+                (*elem).second++;
+            }
+        }
+    }
+    clusters = v_cluster_map.size();
+//    std::cout << "Total number of clusters: " << v_cluster_map.size() << std::endl;
+
+}
+
+void nc_tree::select_and_process() noexcept {
     v_coord_nn.resize(n_coord, 0);
     v_coord_cluster.resize(n_coord, NO_CLUSTER);
     v_coord_status.resize(n_coord, NOT_PROCESSED);
 
+    d_vec<int> v_point_id(v_coord_id.size());
+    exa::iota(v_point_id, 0, v_point_id.size(), 0);
+
+    d_vec<int> v_id_chunk;
+    d_vec<float> v_data_chunk;
+    magma_util::measure_duration("Process Points: ", true, [&]() -> void {
+        int n_blocks = 1;
+        for (int i = 0; i < n_blocks; ++i) {
+            int block_size = magma_util::get_block_size(i, static_cast<int>(v_point_id.size()), n_blocks);
+            int block_offset = magma_util::get_block_offset(i, static_cast<int>(v_point_id.size()), n_blocks);
+            std::cout << "block offset: " << block_offset << " size: " << block_size << std::endl;
+            v_id_chunk.clear();
+            v_id_chunk.insert(v_id_chunk.begin(), std::next(v_point_id.begin(), block_offset),
+                    std::next(v_point_id.begin(), block_offset+block_size));
+            v_data_chunk.clear();
+            v_data_chunk.insert(v_data_chunk.begin(), std::next(v_coord.begin(), block_offset*n_dim),
+                    std::next(v_coord.begin(), (block_offset+block_size)*n_dim));
+            process_points(v_id_chunk, v_data_chunk);
+
+        }
+    });
+}
+
+void nc_tree::process6() noexcept {
+
+
+    // TODO
+//    v_coord_nn.resize(n_coord, 0);
+//    v_coord_cluster.resize(n_coord, NO_CLUSTER);
+//    v_coord_status.resize(n_coord, NOT_PROCESSED);
+//
 //    magma_util::measure_duration("Cell Indexing: ", true, [&]() -> void {
 //        index_into_cells(v_coord_id, v_coord_cell_size, v_coord_cell_offset, v_coord_cell_index, v_dim_part_size[0]);
 //    });

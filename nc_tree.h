@@ -109,7 +109,11 @@ public:
     void index_into_cells(s_vec<int> &v_point_id, s_vec<int> &v_cell_size, s_vec<int> &v_cell_offset,
             s_vec<int> &v_cell_index, int const dim_part_size) noexcept;
 //
-    void process_points(s_vec<int> &v_point_id, s_vec<float> &v_point_data) noexcept;
+    void process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data) noexcept;
+
+    void select_and_process() noexcept;
+
+    void get_result_meta(int &cores, int &noise, int &clusters, int &n) noexcept;
 
 };
 

@@ -16,12 +16,12 @@ namespace nextdbscan {
     static const uint8_t SC = 2;
 
     struct result {
-        long clusters;
-        long noise;
-        long core_count;
-        long n;
+        int clusters;
+        int noise;
+        int core_count;
+        int n;
         // TODO avoid a memory leak
-        long *point_clusters;
+//        int *point_clusters;
     };
 
     result start(int m, float e, int n_thread, const std::string &in_file, magmaMPI mpi) noexcept;

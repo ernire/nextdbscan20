@@ -370,6 +370,39 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data)
     */
 }
 
+void nc_tree::select_and_process() noexcept {
+    v_coord_nn.resize(n_coord, 0);
+    v_coord_cluster.resize(n_coord, NO_CLUSTER);
+    v_coord_status.resize(n_coord, NOT_PROCESSED);
+
+    d_vec<int> v_point_id(v_coord_id.size());
+    thrust::sequence(v_point_id.begin(), v_point_id.end(), 0);
+
+    d_vec<int> v_id_chunk;
+    d_vec<float> v_data_chunk;
+    magma_util::measure_duration("Process Points: ", true, [&]() -> void {
+        int n_blocks = 1;
+        for (int i = 0; i < n_blocks; ++i) {
+            int block_size = magma_util::get_block_size(i, static_cast<int>(v_point_id.size()), n_blocks);
+            int block_offset = magma_util::get_block_offset(i, static_cast<int>(v_point_id.size()), n_blocks);
+            std::cout << "block offset: " << block_offset << " size: " << block_size << std::endl;
+            v_id_chunk.clear();
+            v_id_chunk.insert(v_id_chunk.begin(), std::next(v_point_id.begin(), block_offset),
+                    std::next(v_point_id.begin(), block_offset+block_size));
+            v_data_chunk.clear();
+            v_data_chunk.insert(v_data_chunk.begin(), std::next(v_coord.begin(), block_offset*n_dim),
+                    std::next(v_coord.begin(), (block_offset+block_size)*n_dim));
+            process_points(v_id_chunk, v_data_chunk);
+
+        }
+    });
+
+}
+
+void nc_tree::get_result_meta(int &cores, int &noise, int &clusters, int &n) noexcept {
+
+}
+
 void nc_tree::process6() noexcept {
     /*
     v_dim_part_size.resize(2);
