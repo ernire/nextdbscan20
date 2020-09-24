@@ -170,6 +170,10 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data)
 
     s_vec<int> v_points_in_reach_size(v_point_iota.size(), 0);
     s_vec<int> v_points_in_reach_offset(v_point_iota.size());
+
+    auto check = exa::reduce(v_point_cells_in_reach, 0, v_point_cells_in_reach.size(), 0);
+    std::cout << "check: " << check << std::endl;
+
     // calculate points in reach for each processed point
     exa::for_each(v_point_iota, 0, v_point_iota.size(), [&](int const &i) -> void {
         auto p_sum = 0;
@@ -180,6 +184,7 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data)
     });
     exa::exclusive_scan(v_points_in_reach_size, v_points_in_reach_offset, 0, v_points_in_reach_size.size(), 0, 0);
     long long table_size = exa::reduce(v_points_in_reach_size, 0, v_points_in_reach_size.size(), 0);
+    std::cout << "table_size: " << table_size << std::endl;
     // TODO combine in int64
     s_vec<int> v_hit_table_id_1(table_size, -1);
     s_vec<int> v_hit_table_id_2(table_size, -1);
@@ -203,6 +208,11 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data)
             v_hit_table_id_2[v_cell_reach_offset[i] + j] = v_coord_id[v_coord_cell_offset[v_point_cells_in_reach[i]] + j];
         }
     });
+
+    auto hit1 = exa::reduce(v_hit_table_id_1, 0, v_hit_table_id_1.size(), 0);
+    auto hit2 = exa::reduce(v_hit_table_id_2, 0, v_hit_table_id_2.size(), 0);
+
+    std::cout << "hit1: " << hit1 << " hit2: " << hit2 << std::endl;
 
     s_vec<int> v_hit_table_iota(v_hit_table_id_1.size());
     exa::iota(v_hit_table_iota, 0, v_hit_table_iota.size(), 0);
@@ -302,15 +312,12 @@ void nc_tree::get_result_meta(int &cores, int &noise, int &clusters, int &n) noe
     for (auto const &nn : v_coord_nn) {
         if (nn >= m) ++cores;
     }
-//    std::cout << "cores: " << cores << std::endl;
 
     int cluster_points = 0;
     for (auto const &cluster : v_coord_cluster) {
         if (cluster >= 0) ++cluster_points;
     }
     noise = n_coord - cluster_points;
-//    std::cout << "points in cluster: " << cluster_points << std::endl;
-//    std::cout << "points NOT in cluster: " << nc.v_coord_cluster.size()-cluster_points << std::endl;
 
     std::unordered_map<int, int> v_cluster_map;
     for (int const &cluster : v_coord_cluster) {
@@ -324,8 +331,6 @@ void nc_tree::get_result_meta(int &cores, int &noise, int &clusters, int &n) noe
         }
     }
     clusters = v_cluster_map.size();
-//    std::cout << "Total number of clusters: " << v_cluster_map.size() << std::endl;
-
 }
 
 void nc_tree::select_and_process() noexcept {
@@ -339,8 +344,8 @@ void nc_tree::select_and_process() noexcept {
     d_vec<int> v_id_chunk;
     d_vec<float> v_data_chunk;
     magma_util::measure_duration("Process Points: ", true, [&]() -> void {
-        int n_blocks = 1;
-        for (int i = 0; i < n_blocks; ++i) {
+        int n_blocks = 2;
+        for (int i = 0; i < /*n_blocks*/1; ++i) {
             int block_size = magma_util::get_block_size(i, static_cast<int>(v_point_id.size()), n_blocks);
             int block_offset = magma_util::get_block_offset(i, static_cast<int>(v_point_id.size()), n_blocks);
             std::cout << "block offset: " << block_offset << " size: " << block_size << std::endl;

@@ -242,49 +242,165 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data)
     d_vec<int> v_point_cell_reach_size(v_point_id.size());
 
     collect_cells_in_reach(v_point_index, v_point_cells_in_reach, v_point_cell_reach_offset, v_point_cell_reach_size);
-    /*
-    std::cout << "id size: " << v_point_id.size() << " : " << v_point_data.size() << std::endl;
-    s_vec<int> v_point_iota(v_point_id.size());
-    exa::iota(v_point_iota, 0, v_point_iota.size(), 0);
 
+    d_vec<int> v_points_in_reach_size(v_point_id.size());
+    d_vec<int> v_points_in_reach_offset(v_point_id.size());
+    thrust::counting_iterator<int> it_point_begin(0);
+    thrust::counting_iterator<int> it_point_end = it_point_begin + v_point_id.size();
 
-    exa::for_each(v_point_id, 0, v_point_id.size(), [&](int const &id) -> void {
-        if (id >= 0) {
-            // local, we can modify the status
-            v_coord_status[id] = PROCESSED;
-        }
-    });
+    auto const it_coord_cell_size = v_coord_cell_size.begin();
+    auto const it_point_cell_reach = v_point_cell_reach_size.begin();
+    auto const it_point_cells_in_reach = v_point_cells_in_reach.begin();
+    auto const it_point_cell_reach_offset = v_point_cell_reach_offset.begin();
 
-    // calculate cell index
-    auto v_point_index = v_point_iota;
-    exa::transform(v_point_index, v_point_index, 0, v_point_index.size(), 0,
-            [&](int const &id) -> int {
-                return cell_index(v_point_data[id * n_dim + v_dim_order[0]], v_min_bounds[v_dim_order[0]], e)
-                       + (cell_index(v_point_data[id * n_dim + v_dim_order[1]],
-                        v_min_bounds[v_dim_order[1]], e) * v_dim_part_size[0]);
-            });
-    // obtain reach
-    s_vec<int> v_point_cells_in_reach(v_point_iota.size());
-    s_vec<int> v_point_cell_reach_offset(v_point_iota.size());
-    s_vec<int> v_point_cell_reach_size(v_point_iota.size());
-
-    collect_cells_in_reach(v_point_index, v_point_cells_in_reach, v_point_cell_reach_offset, v_point_cell_reach_size);
-
-    s_vec<int> v_points_in_reach_size(v_point_iota.size(), 0);
-    s_vec<int> v_points_in_reach_offset(v_point_iota.size());
-    // calculate points in reach for each processed point
-    exa::for_each(v_point_iota, 0, v_point_iota.size(), [&](int const &i) -> void {
+    thrust::transform(it_point_begin, it_point_end, v_points_in_reach_size.begin(), [=]__device__(int const &i) -> int {
         auto p_sum = 0;
-        for (int j = 0; j < v_point_cell_reach_size[i]; ++j) {
-            p_sum += v_coord_cell_size[v_point_cells_in_reach[v_point_cell_reach_offset[i] + j]];
+        for (int j = 0; j < *(it_point_cell_reach + i); ++j) {
+            p_sum += *(it_coord_cell_size + *(it_point_cells_in_reach + *(it_point_cell_reach_offset + i) + j));
         }
-        v_points_in_reach_size[i] = p_sum;
+        return p_sum;
     });
-    exa::exclusive_scan(v_points_in_reach_size, v_points_in_reach_offset, 0, v_points_in_reach_size.size(), 0, 0);
-    long long table_size = exa::reduce(v_points_in_reach_size, 0, v_points_in_reach_size.size(), 0);
+    thrust::exclusive_scan(v_points_in_reach_size.begin(), v_points_in_reach_size.end(), v_points_in_reach_offset.begin());
+    auto table_size = thrust::reduce(v_points_in_reach_size.begin(), v_points_in_reach_size.end(), 0);
+    std::cout << "table_size: " << table_size << std::endl;
+    d_vec<int> v_hit_table_id_1(table_size, -1);
+    d_vec<int> v_hit_table_id_2(table_size, -1);
+    auto const it_hit_table_1 = v_hit_table_id_1.begin();
+    auto const it_hit_table_2 = v_hit_table_id_2.begin();
+    auto const it_points_in_reach_offset = v_points_in_reach_offset.begin();
+    auto const it_points_in_reach_size = v_points_in_reach_size.begin();
+    auto const it_coord_id = v_coord_id.begin();
+    auto const it_coord_offset = v_coord_cell_offset.begin();
+    thrust::for_each(it_point_begin, it_point_end, [=]__device__(int const &i) -> void {
+        for (int j = 0; j < *(it_points_in_reach_size + i); ++j) {
+            *(it_hit_table_1 + *(it_points_in_reach_offset + i) + j) = i;
+            *(it_hit_table_2 + *(it_points_in_reach_offset + i) + j) = *(it_coord_id + *(it_coord_offset + *(it_point_cells_in_reach + i)) + j);
+//            v_hit_table_id_2[v_cell_reach_offset[i] + j] = v_coord_id[v_coord_cell_offset[v_point_cells_in_reach[i]] + j];
+        }
+    });
+    auto cnt = thrust::count_if(v_hit_table_id_1.begin(), v_hit_table_id_1.end(), []__device__(int const &v) -> bool {
+       return v == -1;
+    });
+    std::cout << "count if: " << cnt << std::endl;
+    auto pair = thrust::minmax_element(v_hit_table_id_1.begin(), v_hit_table_id_1.end());
+    std::cout << "min: " << *pair.first << " max: " << *pair.second << std::endl;
+    std::cout << "point data size: " << v_point_data.size() << std::endl;
+
+    /*
+    s_vec<int> v_cell_reach_size(v_point_cells_in_reach.size());
+    s_vec<int> v_cell_reach_offset(v_point_cells_in_reach.size());
+    s_vec<int> v_cell_reach_iota(v_point_cells_in_reach.size());
+    exa::iota(v_cell_reach_iota, 0, v_cell_reach_iota.size(), 0);
+    exa::transform(v_point_cells_in_reach, v_cell_reach_size, 0, v_point_cells_in_reach.size(), 0,
+            [&](int const &c_id) -> int {
+                return v_coord_cell_size[c_id];
+            });
+    exa::exclusive_scan(v_cell_reach_size, v_cell_reach_offset, 0, v_cell_reach_size.size(), 0, 0);
+    exa::for_each(v_cell_reach_iota, 0, v_cell_reach_iota.size(), [&](int const &i) -> void {
+        for (int j = 0; j < v_cell_reach_size[i]; ++j) {
+            v_hit_table_id_2[v_cell_reach_offset[i] + j] = v_coord_id[v_coord_cell_offset[v_point_cells_in_reach[i]] + j];
+        }
+    });
+     */
+
+
+    auto hit1 = thrust::reduce(v_hit_table_id_1.begin(), v_hit_table_id_1.end(), 0);
+    auto hit2 = thrust::reduce(v_hit_table_id_2.begin(), v_hit_table_id_2.end(), 0);
+    std::cout << "hit1: " << hit1 << " hit2: " << hit2 << std::endl;
+
+    auto const it_coord_data = v_device_coord.begin();
+    auto const it_point_data = v_point_data.begin();
+    thrust::counting_iterator<int> it_table_cnt_begin(0);
+    thrust::counting_iterator<int> it_table_cnt_end = it_table_cnt_begin + v_hit_table_id_1.size();
+    auto it_perm_begin_1 = thrust::make_permutation_iterator(v_point_data.begin(), it_table_cnt_begin);
+    auto it_trans_begin_1 = thrust::make_transform_iterator(it_perm_begin_1, (thrust::placeholders::_1 * n_dim));
+
+//    auto it_trans_begin = thrust::make_transform_iterator(it_table_cnt_begin, (thrust::placeholders::_1 * n_dim));
+//    auto it_trans_end = thrust::make_transform_iterator(it_table_cnt_end, (thrust::placeholders::_1 * n_dim));
+//    auto it_trans_begin_1 = thrust::make_transform_iterator(v_hit_table_id_1.begin(), (thrust::placeholders::_1 * n_dim));
+//    auto it_trans_end_1 = thrust::make_transform_iterator(v_hit_table_id_1.end(), (thrust::placeholders::_1 * n_dim));
+//    auto it_perm_begin_1 = thrust::make_permutation_iterator(v_point_data.begin(), it_trans_begin_1);
+//    auto it_perm_end_1 = thrust::make_permutation_iterator(v_point_data.end(), it_trans_end_1);
+//    auto it_trans_begin_2 = thrust::make_transform_iterator(v_hit_table_id_2.begin(), (thrust::placeholders::_1 * n_dim));
+//    auto it_trans_end_2 = thrust::make_transform_iterator(v_hit_table_id_2.end(), (thrust::placeholders::_1 * n_dim));
+//    auto it_perm_begin_2 = thrust::make_permutation_iterator(v_device_coord.begin(), it_trans_begin_2);
+//    auto it_perm_end_2 = thrust::make_permutation_iterator(v_device_coord.end(), it_trans_end_2);
+//    thrust::make_zip_iterator(thrust::make_tuple(int_in.begin(), float_in.begin())),
+    float const _e2 = e2;
+    float const _n_dim = n_dim;
+    d_vec<float> v_result_table(table_size, 0);
+    std::cout << "CHECKPOINT" << std::endl;
+    thrust::for_each(it_table_cnt_begin, it_table_cnt_end, [=]__device__(int const &i) -> void {
+        auto it_point = it_point_data + (*(it_hit_table_1 + i) * _n_dim);
+//        auto it_coord = it_coord_data + (*(it_hit_table_2 + i) * _n_dim);
+        float result = 0;
+//        #pragma unroll
+        for (int d = 0; d < _n_dim; ++d) {
+//            result += (*(it_point + d) - *(it_coord + d)) * (*(it_point + d) - *(it_coord + d));
+//            result += *(it_point + d);
+        }
+        if (result > _e2) {
+            *(it_hit_table_1 + i) = -1;
+        }
+    });
+
+
+//    d_vec<float> v_hit_table_result(table_size);
+//    thrust::transform(it_table_cnt_begin, it_table_cnt_end, v_hit_table_result.begin(), [=]__device__(int const &i) -> float {
+//        d_vec<float>::iterator it_coord_1 = it_coord_data + (*(it_hit_table_1 + i) * n_dim);
+//        d_vec<float>::iterator it_coord_2 = it_coord_data + (*(it_hit_table_2 + i) * n_dim);
+//        float result = 0;
+//        #pragma unroll
+//        for (auto d = 0; d < n_dim; ++d) {
+//            result += (*(it_coord_1 + d) - *(it_coord_2 + d)) * (*(it_coord_1 + d) - *(it_coord_2 + d));
+//            result += (*(it_coord_1));// - *(it_coord_2)) * (*(it_coord_1) - *(it_coord_2));
+//            result += 0.5 * 0.3;
+//        }
+//        return result;
+//        return result <= e2? 1 : -1;
+//        *(it_hit_table_1 + i) = -1;
+//        if (result > e2) {
+//            *(it_hit_table_1 + i) = -1;
+//        }
+//        return result;
+//    });
+    std::cout << "CHECKPOINT 2" << std::endl;
+    d_vec<int> v_point_nn(v_point_id.size(), 0);
+    auto it_point_id = v_point_id.begin();
+    auto it_coord_nn = v_coord_nn.begin();
+    thrust::transform(it_point_begin, it_point_end, v_point_nn.begin(), [=]__device__(int const &i) -> int {
+        int p_m = 0;
+        for (int j = 0; j < *(it_points_in_reach_size + i); ++j) {
+            if (*(it_hit_table_1 + *(it_points_in_reach_offset + i) + j) != -1) {
+                ++p_m;
+            }
+        }
+        if (*(it_point_id + i) >= 0) {
+            *(it_coord_nn + *(it_point_id + i)) = p_m;
+        }
+        return p_m;
+    });
+    pair = thrust::minmax_element(v_coord_nn.begin(), v_coord_nn.end());
+    std::cout << "min_nn: " << *pair.first << " max_nn: " << *pair.second << std::endl;
+    /*
+    s_vec<int> v_hit_table_iota(v_hit_table_id_1.size());
+    exa::iota(v_hit_table_iota, 0, v_hit_table_iota.size(), 0);
+    s_vec<int> v_point_nn(v_point_iota.size(), 0);
+    exa::for_each(v_hit_table_iota, 0, v_hit_table_iota.size(), [&](int const &i) -> void {
+        if (!dist_leq(&v_point_data[v_hit_table_id_1[i]*n_dim], &v_coord[v_hit_table_id_2[i]*n_dim], n_dim, e2)) {
+            v_hit_table_id_2[i] = -1;
+        } else {
+            ++v_point_nn[v_hit_table_id_1[i]];
+//            if (v_coord_status[v_hit_table_id_2[i]] != PROCESSED) {
+//                ++v_coord_nn[v_hit_table_id_2[i]];
+//            }
+        }
+    });
+     */
+
+    print_cuda_memory_usage();
+    /*
     // TODO combine in int64
-    s_vec<int> v_hit_table_id_1(table_size, -1);
-    s_vec<int> v_hit_table_id_2(table_size, -1);
     exa::for_each(v_point_iota, 0, v_point_iota.size(), [&](int const &i) -> void {
         std::fill(std::next(v_hit_table_id_1.begin(), v_points_in_reach_offset[i]),
                 std::next(v_hit_table_id_1.begin(), v_points_in_reach_offset[i] + v_points_in_reach_size[i]),
@@ -409,17 +525,16 @@ void nc_tree::select_and_process() noexcept {
     d_vec<int> v_id_chunk;
     d_vec<float> v_data_chunk;
     magma_util::measure_duration("Process Points: ", true, [&]() -> void {
-        int n_blocks = 1;
-        for (int i = 0; i < n_blocks; ++i) {
+        int n_blocks = 2;
+        for (int i = 0; i < 1/*n_blocks*/; ++i) {
             int block_size = magma_util::get_block_size(i, static_cast<int>(v_point_id.size()), n_blocks);
             int block_offset = magma_util::get_block_offset(i, static_cast<int>(v_point_id.size()), n_blocks);
             std::cout << "block offset: " << block_offset << " size: " << block_size << std::endl;
             v_id_chunk.clear();
-            v_id_chunk.insert(v_id_chunk.begin(), std::next(v_point_id.begin(), block_offset),
-                    std::next(v_point_id.begin(), block_offset+block_size));
+            v_id_chunk.insert(v_id_chunk.begin(), v_point_id.begin() + block_offset, v_point_id.begin() + block_offset + block_size);
             v_data_chunk.clear();
-            v_data_chunk.insert(v_data_chunk.begin(), std::next(v_coord.begin(), block_offset*n_dim),
-                    std::next(v_coord.begin(), (block_offset+block_size)*n_dim));
+            v_data_chunk.insert(v_data_chunk.begin(), v_coord.begin() + (block_offset * n_dim), v_coord.begin()
+                + ((block_offset + block_size) * n_dim));
             process_points(v_id_chunk, v_data_chunk);
 
         }
@@ -428,7 +543,32 @@ void nc_tree::select_and_process() noexcept {
 }
 
 void nc_tree::get_result_meta(int &cores, int &noise, int &clusters, int &n) noexcept {
+    n = n_coord;
 
+    auto const _m = m;
+    cores = thrust::count_if(v_coord_nn.begin(), v_coord_nn.end(), [=]__device__(int const &v) -> bool {
+        return v >= _m;
+    });
+    /*
+    int cluster_points = 0;
+    for (auto const &cluster : v_coord_cluster) {
+        if (cluster >= 0) ++cluster_points;
+    }
+    noise = n_coord - cluster_points;
+
+    std::unordered_map<int, int> v_cluster_map;
+    for (int const &cluster : v_coord_cluster) {
+        if (cluster >= 0) {
+            auto elem = v_cluster_map.find(cluster);
+            if (elem == v_cluster_map.end()) {
+                v_cluster_map.insert(std::make_pair(cluster, 1));
+            } else {
+                (*elem).second++;
+            }
+        }
+    }
+    clusters = v_cluster_map.size();
+     */
 }
 
 void nc_tree::process6() noexcept {
