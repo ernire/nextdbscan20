@@ -72,9 +72,6 @@ private:
         return (int)(((coord - bound) / e));
     }
 
-    void collect_cells_in_reach(s_vec<int> &v_point_index,s_vec<int> &v_cell_reach,
-            s_vec<int> &v_point_reach_offset, s_vec<int> &v_point_reach_size) noexcept;
-
 public:
     h_vec<float> v_coord;
 #ifdef CUDA_ON
@@ -83,7 +80,7 @@ public:
     d_vec<float> v_min_bounds, v_max_bounds;
     d_vec<int> v_dim_order;
     d_vec<int> v_coord_id;
-    // TODO optimize sizes
+    // TODO optimize memory usage
     d_vec<int> v_coord_cell_index;
     d_vec<int> v_coord_cell_offset;
     d_vec<int> v_coord_cell_size;
@@ -102,15 +99,15 @@ public:
 
     void process6() noexcept;
 
+    void collect_cells_in_reach(d_vec<int> &v_point_index, d_vec<int> &v_cell_reach,
+            d_vec<int> &v_point_reach_offset, d_vec<int> &v_point_reach_size) noexcept;
+
     void determine_data_bounds() noexcept;
 
     void initialize_cells() noexcept;
 
-    void index_points(d_vec<int> &v_id, d_vec<float> &v_data, d_vec<int> &v_index) noexcept;
+    void index_points(d_vec<float> &v_data, d_vec<int> &v_index) noexcept;
 
-    void index_into_cells(s_vec<int> &v_point_id, s_vec<int> &v_cell_size, s_vec<int> &v_cell_offset,
-            s_vec<int> &v_cell_index, int const dim_part_size) noexcept;
-//
     void process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data) noexcept;
 
     void select_and_process() noexcept;
