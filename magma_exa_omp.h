@@ -146,33 +146,22 @@ namespace exa {
         assert(begin <= end);
 #endif
         d_vec<T> v_t_min_max;
-        T min, max;
         #pragma omp parallel
         {
             int tid = omp_get_thread_num();
-            T min_t = begin;
-            T max_t = begin;
             #pragma omp single
             {
                 v_t_min_max.resize(omp_get_num_threads()*2, 0);
             }
-            #pragma omp for
-            for (T i = begin+1; i < end; ++i) {
-                if (functor(v[i], v[min_t])) {
-                    min_t = i;
-                } else if (functor(v[max_t], v[i])) {
-                    max_t = i;
-                }
-            }
-            v_t_min_max[tid*2] = min_t;
-            v_t_min_max[tid*2+1] = max_t;
+            int size = magma_util::get_block_size(tid, (int)(end - begin), static_cast<int>(v_t_min_max.size() / 2));
+            int offset = magma_util::get_block_offset(tid, (int)(end - begin), static_cast<int>(v_t_min_max.size() / 2));
+            auto pair = std::minmax_element(std::next(v.begin(), offset), std::next(v.begin(), offset + size),
+                    functor);
+            v_t_min_max[tid * 2] = *pair.first;
+            v_t_min_max[tid * 2 + 1] = *pair.second;
         };
-        std::sort(v_t_min_max.begin(), v_t_min_max.end(), [&](auto const &i1, auto const &i2) -> bool {
-            return v[i1] < v[i2];
-        });
-        min = v_t_min_max[0];
-        max = v_t_min_max[v_t_min_max.size()-1];
-        return std::make_pair(v[min], v[max]);
+        std::sort(v_t_min_max.begin(), v_t_min_max.end(), functor);
+        return std::make_pair(v_t_min_max[0], v_t_min_max[v_t_min_max.size()-1]);
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>

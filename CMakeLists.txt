@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 project(nextdbscan20 LANGUAGES CXX)
 
-set(OMP OFF)
+set(OMP ON)
 set(MPI OFF)
 set(CUDA OFF)
 set(DEBUG ON)
