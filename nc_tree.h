@@ -96,8 +96,6 @@ public:
 #endif
     }
 
-    void process6() noexcept;
-
     void collect_cells_in_reach(d_vec<int> &v_point_index, d_vec<int> &v_cell_reach,
             d_vec<int> &v_point_reach_offset, d_vec<int> &v_point_reach_size) noexcept;
 

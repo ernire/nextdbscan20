@@ -106,26 +106,34 @@ namespace exa {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
 #endif
-        d_vec<T> v_copy_size(v_input.size() - in_begin, 0);
-        d_vec<T> v_copy_offset(v_copy_size.size());
-        #pragma omp parallel for
-        for (int i = 0; i < v_copy_size.size(); ++i) {
-            if (functor(v_input[i+in_begin])) {
-                v_copy_size[i] = 1;
+        d_vec<T> v_tmp(in_end - in_begin);
+        d_vec<int> v_t_size;
+        d_vec<int> v_t_offset;
+        int n_thread = 1;
+        #pragma omp parallel
+        {
+            #pragma omp single
+            {
+                n_thread = omp_get_num_threads();
+                v_t_size.resize(n_thread);
+                v_t_offset.resize(n_thread);
             }
-        }
-        auto out_size = count_if(v_copy_size, 0, v_copy_size.size(), [](T const &v) -> bool {
-            if (v == 1)
-                return true;
-            return false;
-        });
-        v_output.resize(out_size);
-        exclusive_scan(v_copy_size, v_copy_offset, 0, v_copy_size.size(), 0, static_cast<T>(in_begin));
-        #pragma omp parallel for
-        for (std::size_t i = 0; i < v_copy_size.size(); ++i) {
-            if (v_copy_size[i] == 1) {
-                v_output[v_copy_offset[i]] = v_input[i+in_begin];
+            int tid = omp_get_thread_num();
+            int size = magma_util::get_block_size(tid, static_cast<int>(in_end - in_begin), n_thread);
+            int offset = magma_util::get_block_offset(tid, static_cast<int>(in_end - in_begin), n_thread);
+            auto it_end = std::copy_if(std::next(v_input.begin(), offset + in_begin),
+                    std::next(v_input.begin(), offset + size + in_begin),
+                    std::next(v_tmp.begin(), offset), functor);
+            v_t_size[tid] = it_end - std::next(v_tmp.begin(), offset);
+            #pragma omp barrier
+            #pragma omp single
+            {
+                int out_size = std::reduce(v_t_size.begin(), v_t_size.end(), 0);
+                v_output.resize(out_size + out_begin);
+                std::exclusive_scan(v_t_size.begin(), v_t_size.end(), v_t_offset.begin(), 0);
             }
+            std::copy(std::next(v_tmp.begin(), offset), std::next(v_tmp.begin(), offset + v_t_size[tid]),
+                    std::next(v_output.begin(), v_t_offset[tid] + out_begin));
         }
     }
 

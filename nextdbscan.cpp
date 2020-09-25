@@ -50,7 +50,8 @@ nextdbscan::result nextdbscan::start(int const m, float const e, int const n_thr
         nc.initialize_cells();
     });
 #ifdef DEBUG_ON
-    std::cout << "number of cells: " << nc.v_coord_cell_size.size() << std::endl;
+    if (mpi.rank == 0)
+        std::cout << "number of cells: " << nc.v_coord_cell_size.size() << std::endl;
     h_vec<int> v_dim_part_size = nc.v_dim_part_size;
     if (mpi.rank == 0) {
         magma_util::print_v("dim part size: ", &v_dim_part_size[0], v_dim_part_size.size());
