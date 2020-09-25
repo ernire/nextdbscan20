@@ -356,7 +356,6 @@ void nc_tree::select_and_process() noexcept {
             v_data_chunk.insert(v_data_chunk.begin(), std::next(v_coord.begin(), block_offset*n_dim),
                     std::next(v_coord.begin(), (block_offset+block_size)*n_dim));
             process_points(v_id_chunk, v_data_chunk);
-
         }
     });
 }
