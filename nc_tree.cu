@@ -165,6 +165,9 @@ void nc_tree::collect_cells_in_reach(d_vec<int> &v_point_index, d_vec<int> &v_ce
     auto const it_full_reach = v_point_reach_full.begin();
     auto const it_reach_size = v_point_reach_size.begin();
     thrust::for_each(it_cnt_begin, it_cnt_end, [=]__device__(int const &i) -> void {
+
+        // TODO RETURN < 0 !!
+
         auto it_begin = it_full_reach + (i * 9);
         auto it_out = it_begin;
         int val = *(it_bounds + (i * 3));
@@ -294,6 +297,7 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data)
     auto const it_point_data = v_point_data.begin();
     thrust::counting_iterator<int> it_table_cnt_begin(0);
     thrust::counting_iterator<int> it_table_cnt_end = it_table_cnt_begin + v_hit_table_id_1.size();
+    // TODO REMOVE ?
     auto it_perm_begin_1 = thrust::make_permutation_iterator(v_point_data.begin(), it_table_cnt_begin);
     auto it_trans_begin_1 = thrust::make_transform_iterator(it_perm_begin_1, (thrust::placeholders::_1 * n_dim));
 
@@ -410,7 +414,7 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data)
     */
 }
 
-void nc_tree::select_and_process() noexcept {
+void nc_tree::select_and_process(magmaMPI mpi) noexcept {
     v_coord_nn.resize(n_coord, 0);
     v_coord_cluster.resize(n_coord, NO_CLUSTER);
     v_coord_status.resize(n_coord, NOT_PROCESSED);
@@ -420,22 +424,18 @@ void nc_tree::select_and_process() noexcept {
 
     d_vec<int> v_id_chunk;
     d_vec<float> v_data_chunk;
-    magma_util::measure_duration("Process Points: ", true, [&]() -> void {
-        int n_blocks = 2;
-        for (int i = 0; i < 1/*n_blocks*/; ++i) {
-            int block_size = magma_util::get_block_size(i, static_cast<int>(v_point_id.size()), n_blocks);
-            int block_offset = magma_util::get_block_offset(i, static_cast<int>(v_point_id.size()), n_blocks);
-            std::cout << "block offset: " << block_offset << " size: " << block_size << std::endl;
-            v_id_chunk.clear();
-            v_id_chunk.insert(v_id_chunk.begin(), v_point_id.begin() + block_offset, v_point_id.begin() + block_offset + block_size);
-            v_data_chunk.clear();
-            v_data_chunk.insert(v_data_chunk.begin(), v_coord.begin() + (block_offset * n_dim), v_coord.begin()
-                + ((block_offset + block_size) * n_dim));
-            process_points(v_id_chunk, v_data_chunk);
-        }
-    });
-
-
+    int n_blocks = 2;
+    for (int i = 0; i < 1/*n_blocks*/; ++i) {
+        int block_size = magma_util::get_block_size(i, static_cast<int>(v_point_id.size()), n_blocks);
+        int block_offset = magma_util::get_block_offset(i, static_cast<int>(v_point_id.size()), n_blocks);
+        std::cout << "block offset: " << block_offset << " size: " << block_size << std::endl;
+        v_id_chunk.clear();
+        v_id_chunk.insert(v_id_chunk.begin(), v_point_id.begin() + block_offset, v_point_id.begin() + block_offset + block_size);
+        v_data_chunk.clear();
+        v_data_chunk.insert(v_data_chunk.begin(), v_coord.begin() + (block_offset * n_dim), v_coord.begin()
+            + ((block_offset + block_size) * n_dim));
+        process_points(v_id_chunk, v_data_chunk);
+    }
 
 }
 

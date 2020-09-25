@@ -30,14 +30,13 @@ using h_vec = std::vector<T>;
 template <typename T>
 using d_vec = std::vector<T>;
 #endif
+#include "magma_mpi.h"
 
 class nc_tree {
 private:
     int const m, n_dim;
-    unsigned long const n_coord;
+    int const n_coord;
     float const e, e2, e_l;
-//    s_vec<int> v_coord_index;
-
 
     static float get_lowest_e(float const e, long const n_dim) noexcept {
         // TODO find a less wasteful formula to maintain precision
@@ -108,11 +107,11 @@ public:
 
     void index_points(d_vec<float> &v_data, d_vec<int> &v_index) noexcept;
 
-    void process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data) noexcept;
+    void process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data, magmaMPI mpi) noexcept;
 
-    void select_and_process() noexcept;
+    void select_and_process(magmaMPI mpi) noexcept;
 
-    void get_result_meta(int &cores, int &noise, int &clusters, int &n) noexcept;
+    void get_result_meta(int &cores, int &noise, int &clusters, int &n, magmaMPI mpi) noexcept;
 
 };
 

@@ -58,25 +58,6 @@ namespace magma_util {
         return duration;
     }
 
-    /*
-    template<class T>
-    void print_vector_n(const std::string &name, h_vec<T> &v_vec, int n) noexcept {
-        std::cout << name;
-        for (int i = 0; i < v_vec.size() && i < n; ++i) {
-            std::cout << v_vec[i] << " ";
-        }
-        std::cout << std::endl;
-    }
-
-    template<class T>
-    void print_vector(const std::string &name, h_vec<T> &v_vec) noexcept {
-        std::cout << name;
-        for (int i = 0; i < v_vec.size(); ++i) {
-            std::cout << v_vec[i] << " ";
-        }
-        std::cout << std::endl;
-    }
-     */
     template<class T>
     void print_v(const std::string &name, T *v, std::size_t size) noexcept {
         std::cout << name;
