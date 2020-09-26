@@ -53,6 +53,16 @@ namespace exa {
         }
     }
 
+    template <typename F>
+    void for_each_dynamic(std::size_t const begin, std::size_t const end, F const &functor) {
+#ifdef DEBUG_ON
+        assert(begin <= end);
+#endif
+        for (std::size_t i = begin; i < end; ++i) {
+            functor(i);
+        }
+    }
+
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
     void exclusive_scan(d_vec<T> &v_input, d_vec<T> &v_output, std::size_t const in_begin, std::size_t const in_end,
             std::size_t const out_begin, T const init) noexcept {
