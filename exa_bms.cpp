@@ -97,6 +97,19 @@ void iota_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const n_it
     magma_util::print_v("Exa iota Times: ", &v_time[0], v_time.size());
 }
 
+void exclusive_scan_bm(s_vec<long long> &v_input, s_vec<long long> &v_output, s_vec<long long> &v_time, int const n_iter) {
+    for (long long i = 0; i < n_iter; ++i) {
+#ifdef OMP_ON
+        omp_set_num_threads(static_cast<int>(powf(2, i)));
+#endif
+        exa::fill(v_input, 0, v_input.size(), static_cast<long long>(1));
+        v_time[i] = magma_util::measure_duration("", false, [&]() -> void {
+            exa::exclusive_scan(v_input, v_output, 0, v_input.size(), 0, i);
+        });
+    }
+    magma_util::print_v("Exa iota Times: ", &v_time[0], v_time.size());
+}
+
 void minmax_element_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const n_iter) {
     for (long long i = 0; i < n_iter; ++i) {
 #ifdef OMP_ON
@@ -170,7 +183,7 @@ void unique_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const n_
 }
 
 int main(int argc, char **argv) {
-    std::cout << "Starting Exa Benchmark Tests" << std::endl;
+    std::cout << "Starting Exa Benchmark Suite" << std::endl;
 
     int const INT32 = INT32_MAX;
     int const MB100 = 100000000;
@@ -242,9 +255,9 @@ int main(int argc, char **argv) {
     std::cout << std::endl;
 
     // reduce
-    magma_util::measure_duration("std reduce: ", true, [&]() -> void {
-        cnt = std::reduce(v_input.begin(), v_input.end(), 0);
-    });
+//    magma_util::measure_duration("std reduce: ", true, [&]() -> void {
+//        cnt = std::reduce(v_input.begin(), v_input.end(), 0);
+//    });
     std::cout << "reduce cnt: " << cnt << std::endl;
     reduce_bm(v_input, v_time, n_iter);
     std::cout << std::endl;
@@ -263,8 +276,14 @@ int main(int argc, char **argv) {
     for_each_bm(v_input, v_copy, v_time, n_iter);
     std::cout << std::endl;
 
+
     // sort
     v_input.resize(MB100);
+    s_vec<long long> v_output(MB100);
+    // exclusive_scan
+    exclusive_scan_bm(v_input, v_output, v_time, n_iter);
+
+
     random_vector(v_input, v_input.size() / 2);
     v_copy = v_input;
     magma_util::measure_duration("std sort: ", true, [&]() -> void {

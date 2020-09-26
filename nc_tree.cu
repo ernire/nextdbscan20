@@ -222,7 +222,7 @@ void nc_tree::collect_cells_in_reach(d_vec<int> &v_point_index, d_vec<int> &v_ce
 #endif
 }
 
-void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data) noexcept {
+void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data, magmaMPI mpi) noexcept {
     auto const it_status = v_coord_status.begin();
     thrust::for_each(v_point_id.begin(), v_point_id.end(), [=]__device__(int const &id) -> void {
         if (id >= 0) {
@@ -434,12 +434,12 @@ void nc_tree::select_and_process(magmaMPI mpi) noexcept {
         v_data_chunk.clear();
         v_data_chunk.insert(v_data_chunk.begin(), v_coord.begin() + (block_offset * n_dim), v_coord.begin()
             + ((block_offset + block_size) * n_dim));
-        process_points(v_id_chunk, v_data_chunk);
+        process_points(v_id_chunk, v_data_chunk, mpi);
     }
 
 }
 
-void nc_tree::get_result_meta(int &cores, int &noise, int &clusters, int &n) noexcept {
+void nc_tree::get_result_meta(int &cores, int &noise, int &clusters, int &n, magmaMPI mpi) noexcept {
     n = n_coord;
 
     auto const _m = m;

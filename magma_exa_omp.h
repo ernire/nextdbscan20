@@ -48,6 +48,20 @@ namespace exa {
         }
     }
 
+    template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    T reduce(d_vec<T> &v, std::size_t const begin, std::size_t const end, T const startval) {
+#ifdef DEBUG_ON
+        assert(begin <= end);
+        assert((end - begin) <= (v.size() - begin));
+#endif
+        T sum = startval;
+#pragma omp parallel for reduction(+: sum)
+        for (std::size_t i = begin; i < end; ++i) {
+            sum += v[i];
+        }
+        return sum;
+    }
+
     template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
     std::size_t count_if(d_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) {
 #ifdef DEBUG_ON
@@ -128,23 +142,25 @@ namespace exa {
             #pragma omp barrier
             #pragma omp single
             {
-                int out_size = std::reduce(v_t_size.begin(), v_t_size.end(), 0);
+//                int out_size = std::reduce(v_t_size.begin(), v_t_size.end(), 0);
+                int out_size = reduce(v_t_size, 0, v_t_size.size(), 0);
                 v_output.resize(out_size + out_begin);
-                std::exclusive_scan(v_t_size.begin(), v_t_size.end(), v_t_offset.begin(), 0);
+                exclusive_scan(v_t_size, v_t_offset, 0, v_t_size.size(), 0, 0);
+//                exclusive_scan(v_t_size.begin(), v_t_size.end(), v_t_offset.begin(), 0);
             }
             std::copy(std::next(v_tmp.begin(), offset), std::next(v_tmp.begin(), offset + v_t_size[tid]),
                     std::next(v_output.begin(), v_t_offset[tid] + out_begin));
         }
     }
 
-    template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void for_each(d_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) {
+    template <typename F>
+    void for_each(std::size_t const begin, std::size_t const end, F const &functor) {
 #ifdef DEBUG_ON
         assert(begin <= end);
 #endif
         #pragma omp parallel for
         for (std::size_t i = begin; i < end; ++i) {
-            functor(v[i]);
+            functor(i);
         }
     }
 
@@ -170,20 +186,6 @@ namespace exa {
         };
         std::sort(v_t_min_max.begin(), v_t_min_max.end(), functor);
         return std::make_pair(v_t_min_max[0], v_t_min_max[v_t_min_max.size()-1]);
-    }
-
-    template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    T reduce(d_vec<T> &v, std::size_t const begin, std::size_t const end, T const startval) {
-#ifdef DEBUG_ON
-        assert(begin <= end);
-        assert((end - begin) <= (v.size() - begin));
-#endif
-        T sum = startval;
-        #pragma omp parallel for reduction(+: sum)
-        for (std::size_t i = begin; i < end; ++i) {
-            sum += v[i];
-        }
-        return sum;
     }
 
     template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>

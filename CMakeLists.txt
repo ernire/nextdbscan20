@@ -4,7 +4,7 @@ project(nextdbscan20 LANGUAGES CXX)
 set(OMP ON)
 set(MPI OFF)
 set(CUDA OFF)
-set(DEBUG OFF)
+set(DEBUG ON)
 set(GTEST OFF)
 set(BMS OFF)
 

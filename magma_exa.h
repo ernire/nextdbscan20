@@ -43,12 +43,14 @@ namespace exa {
         std::fill(std::next(v.begin(), begin), std::next(v.begin(), end), val);
     }
 
-    template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void for_each(d_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) {
+    template <typename F>
+    void for_each(std::size_t const begin, std::size_t const end, F const &functor) {
 #ifdef DEBUG_ON
         assert(begin <= end);
 #endif
-        std::for_each(std::next(v.begin(), begin), std::next(v.begin(), end), functor);
+        for (std::size_t i = begin; i < end; ++i) {
+            functor(i);
+        }
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
