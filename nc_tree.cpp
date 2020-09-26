@@ -222,8 +222,6 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data,
 
     d_vec<int> v_point_cluster(v_point_id.size(), NO_CLUSTER);
     d_vec<int> v_point_status(v_point_id.size(), 0);
-//    s_vec<int> v_point_new_cluster_mark(v_point_id.size(), 0);
-//    s_vec<int> v_point_new_cluster_offset(v_point_id.size());
 
     exa::for_each(0, v_point_id.size(), [&](int const &i) -> void {
         if (v_point_nn[i] >= m) {
@@ -245,7 +243,6 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data,
         exa::for_each(0, v_point_id.size(), [&](int const &i) -> void {
             if (v_point_nn[i] >= m) {
                 for (int j = 0; j < v_points_in_reach_size[i]; ++j) {
-//                    auto id2 = v_hit_table_id_2[v_points_in_reach_offset[i] + j];
                     auto id2 = v_hit_table[v_points_in_reach_offset[i] + j];
                     if (id2 == -1) continue;
                     if (v_coord_nn[id2] >= m) {
@@ -260,7 +257,6 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data,
                                 v_coord_cluster[v_point_id[i]] = v_point_cluster[i];
                             }
                             v_point_status[i] = 1;
-//                            v_done[0] = 0;
                         }
                     }
                 }
@@ -383,7 +379,7 @@ void nc_tree::get_result_meta(int &cores, int &noise, int &clusters, int &n, mag
 
     d_vec<int> v_node_cluster_size(mpi.n_nodes, 0);
     d_vec<int> v_node_cluster_offset(mpi.n_nodes, 0);
-    v_node_cluster_size[mpi.rank] = clusters;
+    v_node_cluster_size[mpi.rank] = clusters+1;
     mpi.allReduce(v_node_cluster_size, magmaMPI::sum);
     exa::exclusive_scan(v_node_cluster_size, v_node_cluster_offset, 0, v_node_cluster_size.size(), 0, 0);
     d_vec<int> v_node_unique(exa::reduce(v_node_cluster_size, 0, v_node_cluster_size.size(), 0));

@@ -69,8 +69,12 @@ namespace exa {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
 #endif
-        std::exclusive_scan(std::next(v_input.begin(), in_begin), std::next(v_input.begin(), in_end),
-                std::next(v_output.begin(), out_begin), init);
+        auto val = init;
+        auto out = out_begin;
+        v_output[out++] = val;
+        for (int i = in_begin + 1; i < in_end; ++i, ++out) {
+            v_output[out] = v_input[i - 1] + v_output[out - 1];
+        }
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
@@ -97,7 +101,11 @@ namespace exa {
         assert(begin <= end);
         assert((end - begin) <= (v.size() - begin));
 #endif
-        return std::reduce(std::next(v.begin(), begin), std::next(v.begin(), end), startval);
+        auto val = startval;
+        for (int i = begin; i < end; ++i) {
+            val += v[i];
+        }
+        return val;
     }
 
     template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
