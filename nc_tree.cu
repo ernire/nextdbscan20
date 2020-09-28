@@ -344,7 +344,7 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data,
     auto const _m = m;
     thrust::for_each(it_point_begin, it_point_end, [=]__device__(int const &i) -> void {
         if (*(it_point_nn + i) >= _m && *(it_point_id + i) >= 0) {
-            *(it_coord_nn + *(it_point_id + i)) = *(it_point_nn + i);
+            *(it_coord_nn + *(it_point_id + i)) = _m;
 //            *(it_coord_nn + *(it_point_id + i)) = _m;
         }
     });
@@ -443,10 +443,49 @@ void nc_tree::select_and_process(magmaMPI mpi) noexcept {
     d_vec<int> v_point_id(v_coord_id.size());
     thrust::sequence(v_point_id.begin(), v_point_id.end(), 0);
 
-    d_vec<int> v_id_chunk;
-    d_vec<float> v_data_chunk;
+//    d_vec<int> v_id_chunk;
+//    d_vec<float> v_data_chunk;
+
+    int n_sample_size = n_coord * mpi.n_nodes;//* mpi.n_nodes / 100;
+    if (mpi.rank == 0)
+        std::cout << "n_sample_size: " << n_sample_size << std::endl;
+    d_vec<int> v_id_chunk(n_sample_size, -1);
+    d_vec<float> v_data_chunk(n_sample_size * n_dim);
+    int node_transmit_size = magma_util::get_block_size(mpi.rank, n_sample_size, mpi.n_nodes);
+    int node_transmit_offset = magma_util::get_block_offset(mpi.rank, n_sample_size, mpi.n_nodes);
+
+    int n_iter = 0;
+//    while (n_iter < n_iter * node_transmit_size < n_coord / 2) {
+    while (n_iter < 1) {
+        thrust::fill(v_id_chunk.begin(), v_id_chunk.end(), -1);
+        thrust::fill(v_data_chunk.begin(), v_data_chunk.end(), -1);
+        thrust::copy(v_point_id.begin() + n_iter * node_transmit_size,
+                v_point_id.begin() + (n_iter + 1) * node_transmit_size,
+                v_id_chunk.begin() + node_transmit_offset);
+        thrust::copy(v_coord.begin() + n_iter * node_transmit_size * n_dim,
+                v_coord.begin() + (n_iter + 1) * node_transmit_size * n_dim,
+                v_data_chunk.begin() + node_transmit_offset * n_dim);
+        /*
+        std::copy(std::next(v_point_id.begin(), n_iter * node_transmit_size),
+                std::next(v_point_id.begin(), (n_iter+1) * node_transmit_size),
+                std::next(v_id_chunk.begin(), node_transmit_offset));
+        std::copy(std::next(v_coord.begin(), n_iter * node_transmit_size * n_dim),
+                std::next(v_coord.begin(), (n_iter + 1) * node_transmit_size * n_dim),
+                std::next(v_data_chunk.begin(), node_transmit_offset * n_dim));
+                */
+
+#ifdef MPI_ON
+        mpi.allGather(v_data_chunk);
+#endif
+        process_points(v_id_chunk, v_data_chunk, mpi);
+        ++n_iter;
+    }
+    if (mpi.rank == 0)
+        std::cout << "total iterations: "<< n_iter << std::endl;
+
+    /*
     int n_blocks = 1;
-    for (int i = 0; i < 1/*n_blocks*/; ++i) {
+    for (int i = 0; i < n_blocks; ++i) {
         int block_size = magma_util::get_block_size(i, static_cast<int>(v_point_id.size()), n_blocks);
         int block_offset = magma_util::get_block_offset(i, static_cast<int>(v_point_id.size()), n_blocks);
         std::cout << "block offset: " << block_offset << " size: " << block_size << std::endl;
@@ -455,8 +494,10 @@ void nc_tree::select_and_process(magmaMPI mpi) noexcept {
         v_data_chunk.clear();
         v_data_chunk.insert(v_data_chunk.begin(), v_coord.begin() + (block_offset * n_dim), v_coord.begin()
             + ((block_offset + block_size) * n_dim));
+
         process_points(v_id_chunk, v_data_chunk, mpi);
     }
+     */
 
 }
 

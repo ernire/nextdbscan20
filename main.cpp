@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
     MPI_Finalize();
 #endif
 
-//    if (mpi.rank == 0) {
+    if (mpi.rank == 0) {
         std::cout << std::endl;
         std::cout << "Estimated clusters: " << results.clusters << std::endl;
         std::cout << "Core Points: " << results.core_count << std::endl;
@@ -88,6 +88,6 @@ int main(int argc, char** argv) {
             std::cout << "Done!" << std::endl;
         }
          */
-//    }
+    }
     return 0;
 }
