@@ -10,7 +10,9 @@
 #include <sstream>
 #include <fstream>
 #include <iterator>
-//#include "magma_util.h"
+#ifdef HDF5_ON
+#include <hdf5.h>
+#endif
 
 int get_block_size(int block_index, int number_of_samples, int number_of_blocks) noexcept {
     int block = (number_of_samples / number_of_blocks);
@@ -54,6 +56,41 @@ namespace magma_input {
         return in_file.compare(in_file.size() - s_cmp.size(), s_cmp.size(), s_cmp) == 0;
     }
 
+    void read_input_hdf5(const std::string &in_file, s_vec<float> &v_points, int &n_coord, int &n_dim,
+            int const n_nodes, int const i_node) noexcept {
+#ifdef HDF5_ON
+//        std::cout << "HDF5 Reading Start: " << std::endl;
+
+
+        // TODO H5F_ACC_RDONLY ?
+        hid_t file = H5Fopen(in_file.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+        hid_t dset = H5Dopen1(file, "DBSCAN");
+//        hid_t dset = H5Dopen1(file, "xyz");
+        hid_t fileSpace= H5Dget_space(dset);
+
+        // Read dataset size and calculate chunk size
+        hsize_t count[2];
+        H5Sget_simple_extent_dims(fileSpace, count,NULL);
+        n_coord = count[0];
+        n_dim = count[1];
+//        std::cout << "HDF5 total size: " << n_coord << std::endl;
+
+        hsize_t block_size =  get_block_size(i_node, n_coord, n_nodes);
+        hsize_t block_offset =  get_block_offset(i_node, n_coord, n_nodes);
+        hsize_t offset[2] = {block_offset, 0};
+        count[0] = block_size;
+        v_points.resize(block_size * n_dim);
+
+        hid_t memSpace = H5Screate_simple(2, count, NULL);
+        H5Sselect_hyperslab(fileSpace,H5S_SELECT_SET,offset, NULL, count, NULL);
+        H5Dread(dset, H5T_IEEE_F32LE, memSpace, fileSpace,H5P_DEFAULT, &v_points[0]);
+
+        H5Dclose(dset);
+        H5Fclose(file);
+
+#endif
+    }
+
     void read_input_bin(const std::string &in_file, s_vec<float> &v_points, int &n_coord, int &n_dim,
             int const n_nodes, int const i_node) noexcept {
         std::ifstream ifs(in_file, std::ios::in | std::ifstream::binary);
@@ -95,7 +132,13 @@ namespace magma_input {
         if (is_equal(in_file, s_cmp_bin)) {
             read_input_bin(in_file, v_input, n, n_dim, n_nodes, i_node);
         } else if (is_equal(in_file, s_cmp_hdf5_1) || is_equal(in_file, s_cmp_hdf5_2)) {
-
+#ifdef HDF5_ON
+            read_input_hdf5(in_file, v_input, n, n_dim, n_nodes, i_node);
+#endif
+#ifndef HDF5_ON
+            std::cerr << "Error: HDF5 is not supported by this executable." << std::endl;
+            exit(-1);
+#endif
         } else if (is_equal(in_file, s_cmp_csv)) {
             count_lines_and_dimensions(in_file, n, n_dim);
             v_input.resize(n * n_dim);

@@ -15,7 +15,7 @@ private:
 
 #ifdef MPI_ON
     template<typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    int inferType(std::vector<T> &v) noexcept {
+    int inferType(d_vec<T> &v) noexcept {
         if (std::is_floating_point<T>::value) {
             return MPI_FLOAT;
         } else {
@@ -44,11 +44,16 @@ public:
     template<typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
     void allGather(d_vec<T> &v_buf) {
 #ifdef MPI_ON
+        if (n_nodes == 1) return;
         auto type = inferType(v_buf);
         MPI_Allgather(MPI_IN_PLACE,
                 0, // ignored
                 type, // ignored
+#ifdef CUDA_ON
+                thrust::raw_pointer_cast(&v_buf[0]),
+#else
                 &v_buf[0],
+#endif
                 v_buf.size() / n_nodes,
                 type,
                 comm);
@@ -58,11 +63,16 @@ public:
     template<typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
     void allGatherv(d_vec<T> &v_buf, d_vec<T> &v_size, d_vec<T> &v_offset) {
 #ifdef MPI_ON
+        if (n_nodes == 1) return;
         auto type = inferType(v_buf);
         MPI_Allgatherv(MPI_IN_PLACE,
                 0,
                 type,
+                #ifdef CUDA_ON
+                thrust::raw_pointer_cast(&v_buf[0]),
+#else
                 &v_buf[0],
+#endif
                 &v_size[0],
                 &v_offset[0],
                 type,
@@ -73,6 +83,7 @@ public:
     template<typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
     void allReduce(d_vec<T> &v_buf, Op op) noexcept {
 #ifdef MPI_ON
+        if (n_nodes == 1) return;
         int iOp = undefined;
         switch (op) {
             case max: iOp = MPI_MAX; break;
@@ -85,7 +96,11 @@ public:
         assert(iOp != undefined);
 #endif
         MPI_Allreduce(MPI_IN_PLACE,
+                #ifdef CUDA_ON
+                thrust::raw_pointer_cast(&v_buf[0]),
+#else
                 &v_buf[0],
+#endif
                 static_cast<int>(v_buf.size()),
                 inferType(v_buf),
                 iOp,

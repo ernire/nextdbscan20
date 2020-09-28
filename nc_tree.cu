@@ -53,12 +53,11 @@ void nc_tree::determine_data_bounds() noexcept {
     v_max_bounds.resize(n_dim);
     thrust::counting_iterator<int> it_cnt_begin(0);
     thrust::counting_iterator<int> it_cnt_end = it_cnt_begin + n_coord;
-    auto const i_begin = v_device_coord.begin();
     for (int d = 0; d < n_dim; ++d) {
         auto it_trans_begin = thrust::make_transform_iterator(it_cnt_begin, (thrust::placeholders::_1 * n_dim) + d);
         auto it_trans_end = thrust::make_transform_iterator(it_cnt_end, (thrust::placeholders::_1 * n_dim) + d);
-        auto it_perm_begin = thrust::make_permutation_iterator(v_device_coord.begin(), it_trans_begin);
-        auto it_perm_end = thrust::make_permutation_iterator(v_device_coord.end(), it_trans_end);
+        auto it_perm_begin = thrust::make_permutation_iterator(v_coord.begin(), it_trans_begin);
+        auto it_perm_end = thrust::make_permutation_iterator(v_coord.end(), it_trans_end);
         auto minmax = thrust::minmax_element(it_perm_begin, it_perm_end);
         v_min_bounds[d] = *minmax.first;
         v_max_bounds[d] = *minmax.second;
@@ -101,7 +100,7 @@ void nc_tree::initialize_cells() noexcept {
     }
     v_coord_cell_index.resize(v_coord_id.size());
     d_vec<int> v_point_cell_index(v_coord_id.size());
-    index_points(v_device_coord, v_point_cell_index);
+    index_points(v_coord, v_point_cell_index);
 
     thrust::sort_by_key(v_point_cell_index.begin(), v_point_cell_index.end(), v_coord_id.begin());
     thrust::counting_iterator<int> it_cnt_begin(0);
@@ -293,13 +292,13 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data,
 //    auto hit2 = thrust::reduce(v_hit_table_id_2.begin(), v_hit_table_id_2.end(), 0);
 //    std::cout << "hit1: " << hit1 << " hit2: " << hit2 << std::endl;
 
-    auto const it_coord_data = v_device_coord.begin();
+    auto const it_coord_data = v_coord.begin();
     auto const it_point_data = v_point_data.begin();
     thrust::counting_iterator<int> it_table_cnt_begin(0);
     thrust::counting_iterator<int> it_table_cnt_end = it_table_cnt_begin + v_hit_table_id_1.size();
     // TODO REMOVE ?
-    auto it_perm_begin_1 = thrust::make_permutation_iterator(v_point_data.begin(), it_table_cnt_begin);
-    auto it_trans_begin_1 = thrust::make_transform_iterator(it_perm_begin_1, (thrust::placeholders::_1 * n_dim));
+//    auto it_perm_begin_1 = thrust::make_permutation_iterator(v_point_data.begin(), it_table_cnt_begin);
+//    auto it_trans_begin_1 = thrust::make_transform_iterator(it_perm_begin_1, (thrust::placeholders::_1 * n_dim));
 
     float const _e2 = e2;
     float const _n_dim = n_dim;
@@ -318,8 +317,8 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data,
     });
 
     d_vec<int> v_point_nn(v_point_id.size(), 0);
-    auto it_point_id = v_point_id.begin();
-    auto it_coord_nn = v_coord_nn.begin();
+    auto const it_point_id = v_point_id.begin();
+    auto const it_coord_nn = v_coord_nn.begin();
     thrust::transform(it_point_begin, it_point_end, v_point_nn.begin(), [=]__device__(int const &i) -> int {
         int p_m = 0;
         for (int j = 0; j < *(it_points_in_reach_size + i); ++j) {
@@ -333,13 +332,31 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data,
         return p_m;
     });
 
-    print_cuda_memory_usage();
+#ifdef MPI_ON
+    mpi.allReduce(v_point_nn, magmaMPI::sum);
+//    mpi.allReduce(v_coord_nn, magmaMPI::sum);
+#endif
+
+
+//    auto it_perm_begin = thrust::make_permutation_iterator(v_point_data.begin(), it_point_begin);
+//    auto it_trans_begin_1 = thrust::make_transform_iterator(it_perm_begin_1, (thrust::placeholders::_1 * n_dim));
+    auto it_point_nn = v_point_nn.begin();
+    auto const _m = m;
+    thrust::for_each(it_point_begin, it_point_end, [=]__device__(int const &i) -> void {
+        if (*(it_point_nn + i) >= _m && *(it_point_id + i) >= 0) {
+            *(it_coord_nn + *(it_point_id + i)) = *(it_point_nn + i);
+//            *(it_coord_nn + *(it_point_id + i)) = _m;
+        }
+    });
+
+//    d_vec<int> v_point_cluster(v_point_id.size(), NO_CLUSTER);
+//    thrust::for_each(it_point_begin, it_point_end, [=]__device__(int const &i) -> void {
+
+//    }
+//    s_vec<int> v_point_new_cluster_mark(v_point_id.size(), 0);
+//    s_vec<int> v_point_new_cluster_offset(v_point_id.size());
+
     /*
-
-    s_vec<int> v_point_cluster(v_point_id.size(), NO_CLUSTER);
-    s_vec<int> v_point_new_cluster_mark(v_point_id.size(), 0);
-    s_vec<int> v_point_new_cluster_offset(v_point_id.size());
-
     exa::for_each(v_point_iota, 0, v_point_iota.size(), [&](int const &i) -> void {
         if (v_point_nn[i] >= m) {
             v_point_cluster[i] = i + cluster_size;
@@ -354,7 +371,11 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data,
             }
         }
     });
+     */
 
+    print_cuda_memory_usage();
+
+    /*
     bool is_done = false;
     int iter_cnt = 0;
     while (!is_done) {
@@ -424,7 +445,7 @@ void nc_tree::select_and_process(magmaMPI mpi) noexcept {
 
     d_vec<int> v_id_chunk;
     d_vec<float> v_data_chunk;
-    int n_blocks = 2;
+    int n_blocks = 1;
     for (int i = 0; i < 1/*n_blocks*/; ++i) {
         int block_size = magma_util::get_block_size(i, static_cast<int>(v_point_id.size()), n_blocks);
         int block_offset = magma_util::get_block_offset(i, static_cast<int>(v_point_id.size()), n_blocks);
@@ -446,13 +467,26 @@ void nc_tree::get_result_meta(int &cores, int &noise, int &clusters, int &n, mag
     cores = thrust::count_if(v_coord_nn.begin(), v_coord_nn.end(), [=]__device__(int const &v) -> bool {
         return v >= _m;
     });
-    /*
-    int cluster_points = 0;
-    for (auto const &cluster : v_coord_cluster) {
-        if (cluster >= 0) ++cluster_points;
-    }
-    noise = n_coord - cluster_points;
+    noise = thrust::count_if(v_coord_cluster.begin(), v_coord_cluster.end(), []__device__(int const &v) -> bool {
+        return v >= 0;
+    });
 
+#ifdef MPI_ON
+    d_vec<int> v_data(2);
+    v_data[0] = cores;
+    v_data[1] = noise;
+    mpi.allReduce(v_data, magmaMPI::sum);
+    cores = v_data[0];
+    noise = v_data[1];
+#endif
+
+//    int cluster_points = 0;
+//    for (auto const &cluster : v_coord_cluster) {
+//        if (cluster >= 0) ++cluster_points;
+//    }
+//    noise = n_coord - cluster_points;
+
+    /*
     std::unordered_map<int, int> v_cluster_map;
     for (int const &cluster : v_coord_cluster) {
         if (cluster >= 0) {

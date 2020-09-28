@@ -55,7 +55,7 @@ namespace exa {
         assert((end - begin) <= (v.size() - begin));
 #endif
         T sum = startval;
-#pragma omp parallel for reduction(+: sum)
+        #pragma omp parallel for reduction(+: sum)
         for (std::size_t i = begin; i < end; ++i) {
             sum += v[i];
         }
@@ -94,7 +94,7 @@ namespace exa {
             int t_size = magma_util::get_block_size(tid, static_cast<int>(in_end - in_begin), static_cast<int>(v_t_size.size()));
             int t_offset = magma_util::get_block_offset(tid, static_cast<int>(in_end - in_begin), static_cast<int>(v_t_size.size()));
             T size_sum = 0;
-            for (int i = t_offset; i < t_offset + t_size; ++i) {
+            for (auto i = t_offset; i < t_offset + t_size; ++i) {
                 size_sum += v_input[i + in_begin];
             }
             v_t_size[tid] = size_sum;
@@ -103,12 +103,13 @@ namespace exa {
             {
                 v_t_offset = v_t_size;
                 v_t_offset[0] = init;
-                for (int i = 1; i < v_t_offset.size(); ++i) {
+                for (auto i = 1; i < v_t_offset.size(); ++i) {
                     v_t_offset[i] = v_t_offset[i - 1] + v_t_size[i - 1];
                 }
+
             }
             v_output[t_offset] = v_t_offset[tid];
-            for (int i = t_offset + 1; i < t_offset + t_size; ++i) {
+            for (auto i = t_offset + 1; i < t_offset + t_size; ++i) {
                 v_output[out_begin + i] = v_input[i + in_begin - 1] + v_output[out_begin + i - 1];
             }
         }
@@ -120,37 +121,32 @@ namespace exa {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
 #endif
-        d_vec<T> v_tmp(in_end - in_begin);
-        d_vec<int> v_t_size;
-        d_vec<int> v_t_offset;
+        d_vec<int> v_t_val;
+//        d_vec<int>::iterator v_t_output;
         int n_thread = 1;
         #pragma omp parallel
         {
             #pragma omp single
             {
                 n_thread = omp_get_num_threads();
-                v_t_size.resize(n_thread);
-                v_t_offset.resize(n_thread);
+                v_t_val.resize(n_thread * 2);
             }
             int tid = omp_get_thread_num();
             int size = magma_util::get_block_size(tid, static_cast<int>(in_end - in_begin), n_thread);
             int offset = magma_util::get_block_offset(tid, static_cast<int>(in_end - in_begin), n_thread);
             auto it_end = std::copy_if(std::next(v_input.begin(), offset + in_begin),
                     std::next(v_input.begin(), offset + size + in_begin),
-                    std::next(v_tmp.begin(), offset), functor);
-            v_t_size[tid] = it_end - std::next(v_tmp.begin(), offset);
-            #pragma omp barrier
-            #pragma omp single
-            {
-//                int out_size = std::reduce(v_t_size.begin(), v_t_size.end(), 0);
-                int out_size = reduce(v_t_size, 0, v_t_size.size(), 0);
-                v_output.resize(out_size + out_begin);
-                exclusive_scan(v_t_size, v_t_offset, 0, v_t_size.size(), 0, 0);
-//                exclusive_scan(v_t_size.begin(), v_t_size.end(), v_t_offset.begin(), 0);
-            }
-            std::copy(std::next(v_tmp.begin(), offset), std::next(v_tmp.begin(), offset + v_t_size[tid]),
-                    std::next(v_output.begin(), v_t_offset[tid] + out_begin));
+                    std::next(v_output.begin(), offset + out_begin), functor);
+            v_t_val[tid * 2] = offset + out_begin;
+            v_t_val[tid * 2 + 1] = it_end - v_output.begin();
         }
+        auto it_out = std::next(v_output.begin(), v_t_val[1]);
+        for (int t = 1; t < n_thread; ++t) {
+            it_out = std::move(std::next(v_output.begin(), v_t_val[t * 2]),
+                    std::next(v_output.begin(), v_t_val[t * 2 + 1]),
+                    it_out);
+        }
+        v_output.resize(std::distance(v_output.begin(), it_out));
     }
 
     template <typename F>
@@ -190,7 +186,7 @@ namespace exa {
             }
             int size = magma_util::get_block_size(tid, (int)(end - begin), static_cast<int>(v_t_min_max.size() / 2));
             int offset = magma_util::get_block_offset(tid, (int)(end - begin), static_cast<int>(v_t_min_max.size() / 2));
-            auto pair = std::minmax_element(std::next(v.begin(), offset), std::next(v.begin(), offset + size),
+            auto pair = std::minmax_element(std::next(v.begin(), offset + begin), std::next(v.begin(), offset + size + begin),
                     functor);
             v_t_min_max[tid * 2] = *pair.first;
             v_t_min_max[tid * 2 + 1] = *pair.second;
@@ -287,7 +283,8 @@ namespace exa {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
 #endif
-        v_output.resize(1, 0);
+//        v_output.resize(1, 0);
+        v_output[0] = 0;
         exa::copy_if(v_input, v_output, 1, v_input.size(), 1, functor);
     }
 
@@ -298,8 +295,8 @@ namespace exa {
         assert(in_begin <= in_end);
 #endif
         #pragma omp parallel for
-        for (std::size_t i = 0; i < in_end - in_begin; ++i) {
-            v_output[out_begin + i] = functor(v_input[i + in_begin]);
+        for (std::size_t i = in_begin; i < in_end; ++i) {
+            v_output[out_begin + i - in_begin] = functor(v_input[i]);
         }
     }
 }

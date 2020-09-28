@@ -72,9 +72,9 @@ private:
     }
 
 public:
-    h_vec<float> v_coord;
+    d_vec<float> v_coord;
 #ifdef CUDA_ON
-    d_vec<float> v_device_coord;
+//    d_vec<float> v_device_coord;
 #endif
     d_vec<float> v_min_bounds, v_max_bounds;
     d_vec<int> v_dim_order;
@@ -89,12 +89,15 @@ public:
     d_vec<int> v_dim_part_size;
     int cluster_size = 0;
 
-    explicit nc_tree(h_vec<float> &v_coord, int const m, float const e, int const n_dim) : v_coord(std::move(v_coord)),
-        m(m), n_dim(n_dim), n_coord(v_coord.size()/n_dim), e(e), e2(e*e), e_l(get_lowest_e(e, n_dim)) {
 #ifdef CUDA_ON
-        v_device_coord = v_coord;
+    explicit nc_tree(h_vec<float> &v_coord, int const m, float const e, int const n_dim)
+        : v_coord(v_coord), m(m), n_dim(n_dim), n_coord(v_coord.size()/n_dim), e(e), e2(e*e),
+        e_l(get_lowest_e(e, n_dim)) {}
+#else
+    explicit nc_tree(h_vec<float> &v_coord, int const m, float const e, int const n_dim)
+        : v_coord(std::move(v_coord)), m(m), n_dim(n_dim), n_coord(v_coord.size()/n_dim), e(e), e2(e*e),
+        e_l(get_lowest_e(e, n_dim)) {}
 #endif
-    }
 
     void collect_cells_in_reach(d_vec<int> &v_point_index, d_vec<int> &v_cell_reach,
             d_vec<int> &v_point_reach_offset, d_vec<int> &v_point_reach_size) noexcept;

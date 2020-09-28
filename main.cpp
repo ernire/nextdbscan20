@@ -43,13 +43,9 @@ int main(int argc, char** argv) {
     std::string input_file = "";
     std::string output_file = "";
 
-    long n, n_dim, total_samples;
-
-//    m = std::strto(argv[2], &p, 10);
     m = std::stoi(argv[2]);
     e = std::strtof(argv[4], &p);
     n_thread = std::stoi(argv[6]);
-//    n_thread = std::strtol(argv[6], &p, 10);
     input_file = argv[7];
     std::cout << "input file: " << input_file << " : " << m << " : " << e << " n_threads: " << n_thread << std::endl;
 
@@ -70,7 +66,7 @@ int main(int argc, char** argv) {
     MPI_Finalize();
 #endif
 
-    if (mpi.rank == 0) {
+//    if (mpi.rank == 0) {
         std::cout << std::endl;
         std::cout << "Estimated clusters: " << results.clusters << std::endl;
         std::cout << "Core Points: " << results.core_count << std::endl;
@@ -92,6 +88,6 @@ int main(int argc, char** argv) {
             std::cout << "Done!" << std::endl;
         }
          */
-    }
+//    }
     return 0;
 }

@@ -73,12 +73,12 @@ void for_each_bm(s_vec<long long> &v_input, s_vec<long long> &v_work, s_vec<long
         omp_set_num_threads(static_cast<int>(powf(2, i)));
 #endif
         v_time[i] = magma_util::measure_duration("", false, [&]() -> void {
-            exa::for_each(v_input, 0, v_input.size(), [&](auto &v) -> void {
-                long long sum = 0;
-                for (auto const &v2 : v_work) {
-                    sum += v2;
-                }
-                v = sum;
+            exa::for_each(0, v_input.size(), [&](auto v) -> void {
+//                long long sum = 0;
+//                for (auto const &v2 : v_work) {
+//                    sum += v2;
+//                }
+                v = v * 2;
             });
         });
     }
@@ -103,11 +103,12 @@ void exclusive_scan_bm(s_vec<long long> &v_input, s_vec<long long> &v_output, s_
         omp_set_num_threads(static_cast<int>(powf(2, i)));
 #endif
         exa::fill(v_input, 0, v_input.size(), static_cast<long long>(1));
+
         v_time[i] = magma_util::measure_duration("", false, [&]() -> void {
             exa::exclusive_scan(v_input, v_output, 0, v_input.size(), 0, i);
         });
     }
-    magma_util::print_v("Exa iota Times: ", &v_time[0], v_time.size());
+    magma_util::print_v("Exclusive Scan Times: ", &v_time[0], v_time.size());
 }
 
 void minmax_element_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const n_iter) {
@@ -162,7 +163,7 @@ void transform_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const
             });
         });
     }
-    magma_util::print_v("Exa count_if Times: ", &v_time[0], v_time.size());
+    magma_util::print_v("Exa transform Times: ", &v_time[0], v_time.size());
 }
 
 void unique_bm(s_vec<long long> &v_input, s_vec<long long> &v_time, int const n_iter) {
@@ -186,9 +187,10 @@ int main(int argc, char **argv) {
     std::cout << "Starting Exa Benchmark Suite" << std::endl;
 
     int const INT32 = INT32_MAX;
-    int const MB100 = 100000000;
-    s_vec<long long> v_input(INT32);
+    int const GB1 = 1000000000;
+    d_vec<long long> v_input(GB1);
     int n_iter = 1;
+//    int n_threads = 1;
     long long cnt = 0;
 #ifdef OMP_ON
     #pragma omp parallel
@@ -197,9 +199,12 @@ int main(int argc, char **argv) {
         n_iter = log2(omp_get_num_threads());
     }
 #endif
+    // up to 16 threads
+    n_iter = 5;
     std::cout << "iterations: " << n_iter << std::endl;
     s_vec<long long> v_time(n_iter);
 
+    /*
     // iota
     magma_util::measure_duration("std iota: ", true, [&]() -> void {
         std::iota(v_input.begin(), v_input.end(), 100);
@@ -239,9 +244,8 @@ int main(int argc, char **argv) {
     });
     fill_bm(v_input, v_time, n_iter);
     std::cout << std::endl;
-
+    */
     // copy_if
-    v_input.resize(MB100);
     std::iota(v_input.begin(), v_input.end(), 0);
     s_vec<long long> v_copy(v_input.size());
     magma_util::measure_duration("std copy_if: ", true, [&]() -> void {
@@ -253,7 +257,7 @@ int main(int argc, char **argv) {
     std::cout << "copy size: " << v_copy.size() << std::endl;
     copy_bm(v_input, v_copy, v_time, n_iter);
     std::cout << std::endl;
-
+    /*
     // reduce
 //    magma_util::measure_duration("std reduce: ", true, [&]() -> void {
 //        cnt = std::reduce(v_input.begin(), v_input.end(), 0);
@@ -263,25 +267,34 @@ int main(int argc, char **argv) {
     std::cout << std::endl;
 
     // for_each
-    v_copy.resize(100);
+//    v_copy.resize(100);
     magma_util::measure_duration("std for_each: ", true, [&]() -> void {
         std::for_each(v_input.begin(), v_input.end(), [&](auto &v) -> void {
-            long long sum = 0;
-            for (auto const &v2 : v_copy) {
-                sum += v2;
-            }
-            v = sum;
+//            long long sum = 0;
+//            for (auto const &v2 : v_copy) {
+//            sum += v * 2;
+//            }
+//            v = sum;
+            v = v * 2;
         });
     });
     for_each_bm(v_input, v_copy, v_time, n_iter);
     std::cout << std::endl;
 
+ */
+//    magma_util::measure_duration("std exclusive_scan: ", true, [&]() -> void {
+//        std::exclusive_scan(v_input.begin(), v_input.end(), v_copy.begin(), static_cast<long long>(0));
+//    });
+
+    // exclusive_scan
+    v_copy = v_input;
+    exclusive_scan_bm(v_input, v_copy, v_time, n_iter);
+
+    /*
 
     // sort
-    v_input.resize(MB100);
-    s_vec<long long> v_output(MB100);
-    // exclusive_scan
-    exclusive_scan_bm(v_input, v_output, v_time, n_iter);
+    v_input.resize(GB1);
+    s_vec<long long> v_output(GB1);
 
 
     random_vector(v_input, v_input.size() / 2);
@@ -299,5 +312,5 @@ int main(int argc, char **argv) {
         v_copy.erase(last, v_copy.end());
     });
     unique_bm(v_input, v_time, n_iter);
-
+    */
 }
