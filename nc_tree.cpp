@@ -413,18 +413,17 @@ void nc_tree::select_and_process(magmaMPI mpi) noexcept {
 
 
     d_vec<int> v_point_id(v_coord_id.size());
+#ifdef DEBUG_ON
     if (mpi.rank == 0)
         std::cout << "number of cells: " << static_cast<int>(v_coord_cell_size.size()) << std::endl;
+#endif
     exa::iota(v_point_id, 0, v_point_id.size(), 0);
 
-//    int n_sample_size = static_cast<int>(v_coord_cell_size.size());
-//    int n_sample_size = 131072 * mpi.n_nodes;
     int n_sample_size = n_coord * mpi.n_nodes / 100;
-//    int n_sample_size = (n_coord / 4);
-//#ifdef DEBUG_ON
+#ifdef DEBUG_ON
     if (mpi.rank == 0)
         std::cout << "n_sample_size: " << n_sample_size << std::endl;
-//#endif
+#endif
     d_vec<int> v_id_chunk(n_sample_size, -1);
     d_vec<float> v_data_chunk(n_sample_size * n_dim);
     int node_transmit_size = magma_util::get_block_size(mpi.rank, n_sample_size, mpi.n_nodes);

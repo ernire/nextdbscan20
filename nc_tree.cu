@@ -255,23 +255,24 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data,
         }
         return p_sum;
     });
-    thrust::exclusive_scan(v_points_in_reach_size.begin(), v_points_in_reach_size.end(), v_points_in_reach_offset.begin());
-    auto table_size = thrust::reduce(v_points_in_reach_size.begin(), v_points_in_reach_size.end(), 0);
-    std::cout << "table_size: " << table_size << std::endl;
-    d_vec<int> v_hit_table_id_1(table_size, -1);
-    d_vec<int> v_hit_table_id_2(table_size, -1);
-    auto const it_hit_table_1 = v_hit_table_id_1.begin();
-    auto const it_hit_table_2 = v_hit_table_id_2.begin();
-    auto const it_points_in_reach_offset = v_points_in_reach_offset.begin();
-    auto const it_points_in_reach_size = v_points_in_reach_size.begin();
-    auto const it_coord_id = v_coord_id.begin();
-    auto const it_coord_offset = v_coord_cell_offset.begin();
-    thrust::for_each(it_point_begin, it_point_end, [=]__device__(int const &i) -> void {
-        for (int j = 0; j < *(it_points_in_reach_size + i); ++j) {
-            *(it_hit_table_1 + *(it_points_in_reach_offset + i) + j) = i;
-        }
-    });
+//    thrust::exclusive_scan(v_points_in_reach_size.begin(), v_points_in_reach_size.end(), v_points_in_reach_offset.begin());
+//    auto table_size = thrust::reduce(v_points_in_reach_size.begin(), v_points_in_reach_size.end(), 0);
+//    std::cout << "table_size: " << table_size << std::endl;
+//    d_vec<int> v_hit_table_id_1(table_size, -1);
+//    d_vec<int> v_hit_table_id_2(table_size, -1);
+//    auto const it_hit_table_1 = v_hit_table_id_1.begin();
+//    auto const it_hit_table_2 = v_hit_table_id_2.begin();
+//    auto const it_points_in_reach_offset = v_points_in_reach_offset.begin();
+//    auto const it_points_in_reach_size = v_points_in_reach_size.begin();
+//    auto const it_coord_id = v_coord_id.begin();
+//    auto const it_coord_offset = v_coord_cell_offset.begin();
+//    thrust::for_each(it_point_begin, it_point_end, [=]__device__(int const &i) -> void {
+//        for (int j = 0; j < *(it_points_in_reach_size + i); ++j) {
+//            *(it_hit_table_1 + *(it_points_in_reach_offset + i) + j) = i;
+//        }
+//    });
 
+    /*
     d_vec<int> v_cell_reach_size(v_point_cells_in_reach.size());
     d_vec<int> v_cell_reach_offset(v_point_cells_in_reach.size());
     thrust::transform(v_point_cells_in_reach.begin(), v_point_cells_in_reach.end(), v_cell_reach_size.begin(), [=]__device__(int const &c_id) -> int {
@@ -315,7 +316,65 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data,
             *(it_hit_table_1 + i) = -1;
         }
     });
+    */
+    d_vec<int> v_point_nn(v_point_id.size(), 0);
+    /*
+        exa::for_each_dynamic(0, v_point_id.size(), [&](int const &i) -> void {
+//        if (v_points_in_reach_size[i] < m)
+//            return;
+            int nn = 0;
+//        int cnt = 0;
+            for (int ci = 0; ci < v_point_cell_reach_size[i]; ++ci) {
+                int c = v_point_cells_in_reach[v_point_cell_reach_offset[i] + ci];
+                for (int j = 0; j < v_coord_cell_size[c]; ++j) {
+                    int id2 = v_coord_id[v_coord_cell_offset[c] + j];
+                    if (dist_leq(&v_point_data[i * n_dim], &v_coord[id2 * n_dim], n_dim, e2)) {
+                        ++nn;
+//                    v_hit_table[v_points_in_reach_offset[i] + cnt] = id2;
+                    }
+                }
+            }
+            // used local var to minimize false sharing
+            v_point_nn[i] = nn;
+            if (v_point_nn[i] >= m && v_point_id[i] >= 0) {
+                v_coord_nn[v_point_id[i]] = v_point_nn[i];
+            }
+        });
+     */
 
+    auto const it_point_cell_reach_size = v_point_cell_reach_size.begin();
+    auto const it_coord_cell_offset = v_coord_cell_offset.begin();
+    auto const it_point_data = v_point_data.begin();
+    auto const it_coord_data = v_coord.begin();
+    auto const it_point_nn = v_point_nn.begin();
+    auto const it_coord_id = v_coord_id.begin();
+    auto const _e2 = e2;
+    auto const _n_dim = n_dim;
+    thrust::for_each(it_point_begin, it_point_end, [=]__device__(int const &i) -> void {
+        int nn = 0;
+        float tmp, result;
+        for (int ci = 0; ci < *(it_point_cell_reach_size + i); ++ci) {
+            int c = *(it_point_cells_in_reach + *(it_point_cell_reach_offset + i) + ci);
+            for (int j = 0; j < *(it_coord_cell_size + c); ++j) {
+                int id2 = *(it_coord_id + *(it_coord_cell_offset + c) + j);
+                result = 0;
+                for (int d = 0; d < _n_dim; d++) {
+//                    tmp = 2;
+                    tmp = *(it_point_data + (i * _n_dim) + d) - *(it_coord_data + (id2 * _n_dim) + d);
+                    result += tmp * tmp;
+////                    tmp += (coord1[d] - coord2[d]) * (coord1[d] - coord2[d]);
+                }
+                if (result <= _e2) {
+                    ++nn;
+                }
+            }
+        }
+        *(it_point_nn + i) = nn;
+//        if (v_point_nn[i] >= m && v_point_id[i] >= 0) {
+//            v_coord_nn[v_point_id[i]] = v_point_nn[i];
+//        }
+    });
+    /*
     d_vec<int> v_point_nn(v_point_id.size(), 0);
     auto const it_point_id = v_point_id.begin();
     auto const it_coord_nn = v_coord_nn.begin();
@@ -331,6 +390,7 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data,
         }
         return p_m;
     });
+     */
 
 #ifdef MPI_ON
     mpi.allReduce(v_point_nn, magmaMPI::sum);
@@ -338,9 +398,10 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data,
 #endif
 
 
+    auto const it_point_id = v_point_id.begin();
+    auto const it_coord_nn = v_coord_nn.begin();
 //    auto it_perm_begin = thrust::make_permutation_iterator(v_point_data.begin(), it_point_begin);
 //    auto it_trans_begin_1 = thrust::make_transform_iterator(it_perm_begin_1, (thrust::placeholders::_1 * n_dim));
-    auto it_point_nn = v_point_nn.begin();
     auto const _m = m;
     thrust::for_each(it_point_begin, it_point_end, [=]__device__(int const &i) -> void {
         if (*(it_point_nn + i) >= _m && *(it_point_id + i) >= 0) {
@@ -372,8 +433,9 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data,
         }
     });
      */
-
+#ifdef DEBUG_ON
     print_cuda_memory_usage();
+#endif
 
     /*
     bool is_done = false;
@@ -443,10 +505,7 @@ void nc_tree::select_and_process(magmaMPI mpi) noexcept {
     d_vec<int> v_point_id(v_coord_id.size());
     thrust::sequence(v_point_id.begin(), v_point_id.end(), 0);
 
-//    d_vec<int> v_id_chunk;
-//    d_vec<float> v_data_chunk;
-
-    int n_sample_size = n_coord * mpi.n_nodes;//* mpi.n_nodes / 100;
+    int n_sample_size = n_coord * mpi.n_nodes / 4;
     if (mpi.rank == 0)
         std::cout << "n_sample_size: " << n_sample_size << std::endl;
     d_vec<int> v_id_chunk(n_sample_size, -1);
@@ -456,7 +515,7 @@ void nc_tree::select_and_process(magmaMPI mpi) noexcept {
 
     int n_iter = 0;
 //    while (n_iter < n_iter * node_transmit_size < n_coord / 2) {
-    while (n_iter < 1) {
+    while (n_iter < 4) {
         thrust::fill(v_id_chunk.begin(), v_id_chunk.end(), -1);
         thrust::fill(v_data_chunk.begin(), v_data_chunk.end(), -1);
         thrust::copy(v_point_id.begin() + n_iter * node_transmit_size,
@@ -465,15 +524,6 @@ void nc_tree::select_and_process(magmaMPI mpi) noexcept {
         thrust::copy(v_coord.begin() + n_iter * node_transmit_size * n_dim,
                 v_coord.begin() + (n_iter + 1) * node_transmit_size * n_dim,
                 v_data_chunk.begin() + node_transmit_offset * n_dim);
-        /*
-        std::copy(std::next(v_point_id.begin(), n_iter * node_transmit_size),
-                std::next(v_point_id.begin(), (n_iter+1) * node_transmit_size),
-                std::next(v_id_chunk.begin(), node_transmit_offset));
-        std::copy(std::next(v_coord.begin(), n_iter * node_transmit_size * n_dim),
-                std::next(v_coord.begin(), (n_iter + 1) * node_transmit_size * n_dim),
-                std::next(v_data_chunk.begin(), node_transmit_offset * n_dim));
-                */
-
 #ifdef MPI_ON
         mpi.allGather(v_data_chunk);
 #endif
@@ -520,12 +570,6 @@ void nc_tree::get_result_meta(int &cores, int &noise, int &clusters, int &n, mag
     cores = v_data[0];
     noise = v_data[1];
 #endif
-
-//    int cluster_points = 0;
-//    for (auto const &cluster : v_coord_cluster) {
-//        if (cluster >= 0) ++cluster_points;
-//    }
-//    noise = n_coord - cluster_points;
 
     /*
     std::unordered_map<int, int> v_cluster_map;
