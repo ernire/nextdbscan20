@@ -111,19 +111,19 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data,
     });
     // calculate cell index
     d_vec<int> v_point_index(v_point_id.size());
-//    magma_util::measure_duration("Point Index: ", mpi.rank == 0, [&]() -> void {
+    magma_util::measure_duration("Point Index: ", mpi.rank == 0, [&]() -> void {
         index_points(v_point_data, v_point_index);
-//    });
+    });
 
     // obtain reach
     s_vec<int> v_point_cells_in_reach(v_point_id.size());
     s_vec<int> v_point_cell_reach_offset(v_point_id.size());
     s_vec<int> v_point_cell_reach_size(v_point_id.size());
 
-//    magma_util::measure_duration("Collect Cells: ", mpi.rank == 0, [&]() -> void {
+    magma_util::measure_duration("Collect Cells: ", mpi.rank == 0, [&]() -> void {
         collect_cells_in_reach(v_point_index, v_point_cells_in_reach, v_point_cell_reach_offset,
                 v_point_cell_reach_size);
-//    });
+    });
 
 #ifdef DEBUG_ON
     if (mpi.rank == 0)
@@ -419,7 +419,8 @@ void nc_tree::select_and_process(magmaMPI mpi) noexcept {
 #endif
     exa::iota(v_point_id, 0, v_point_id.size(), 0);
 
-    int n_sample_size = n_coord * mpi.n_nodes / 100;
+//    int n_sample_size = n_coord * mpi.n_nodes / 100;
+    int n_sample_size = 3500000 * mpi.n_nodes;
 #ifdef DEBUG_ON
     if (mpi.rank == 0)
         std::cout << "n_sample_size: " << n_sample_size << std::endl;
@@ -431,7 +432,10 @@ void nc_tree::select_and_process(magmaMPI mpi) noexcept {
 
     int n_iter = 0;
 //    while (n_iter < n_iter * node_transmit_size < n_coord / 2) {
-    while (n_iter < 10) {
+    while (n_iter * mpi.n_nodes < 32) {
+        if (mpi.rank == 0)
+            std::cout << "n_iter: " << n_iter << std::endl;
+
         exa::fill(v_id_chunk, 0, v_id_chunk.size(), -1);
         exa::fill(v_data_chunk, 0, v_data_chunk.size(), static_cast<float>(-1));
         std::copy(std::next(v_point_id.begin(), n_iter * node_transmit_size),

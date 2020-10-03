@@ -57,14 +57,15 @@ namespace magma_input {
     }
 
     void read_input_hdf5(const std::string &in_file, s_vec<float> &v_points, int &n_coord, int &n_dim,
-            int const n_nodes, int const i_node) noexcept {
+            int const n_nodes, int i_node) noexcept {
 #ifdef HDF5_ON
 //        std::cout << "HDF5 Reading Start: " << std::endl;
 
 
         // TODO H5F_ACC_RDONLY ?
         hid_t file = H5Fopen(in_file.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-        hid_t dset = H5Dopen1(file, "DBSCAN");
+//        hid_t dset = H5Dopen1(file, "DBSCAN");
+        hid_t dset = H5Dopen1(file, i_node < (n_nodes / 2)? "xyz_1" : "xyz_2");
 //        hid_t dset = H5Dopen1(file, "xyz");
         hid_t fileSpace= H5Dget_space(dset);
 
@@ -75,8 +76,11 @@ namespace magma_input {
         n_dim = count[1];
 //        std::cout << "HDF5 total size: " << n_coord << std::endl;
 
-        hsize_t block_size =  get_block_size(i_node, n_coord, n_nodes);
-        hsize_t block_offset =  get_block_offset(i_node, n_coord, n_nodes);
+        hsize_t block_size =  get_block_size(i_node >= (n_nodes / 2)? i_node - (n_nodes / 2): i_node, n_coord, n_nodes / 2);
+        hsize_t block_offset =  get_block_offset(i_node >= (n_nodes / 2)? i_node - (n_nodes / 2): i_node, n_coord, n_nodes / 2);
+//        hsize_t block_size =  get_block_size(i_node, n_coord, n_nodes);
+//        hsize_t block_offset =  get_block_offset(i_node, n_coord, n_nodes);
+//        std::cout << "i_node: " << i_node << " offset:size " << block_offset << " : " <<  block_size << std::endl;
         hsize_t offset[2] = {block_offset, 0};
         count[0] = block_size;
         v_points.resize(block_size * n_dim);
