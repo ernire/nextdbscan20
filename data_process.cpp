@@ -5,40 +5,72 @@
 #include <iostream>
 #include <unordered_map>
 #include "magma_util.h"
-#include "nc_tree.h"
+#include "data_process.h"
 #ifdef OMP_ON
 #include "magma_exa_omp.h"
+#elif CUDA_ON
+
 #else
 #include "magma_exa.h"
 #endif
 
 
-void nc_tree::determine_data_bounds() noexcept {
+void data_process::determine_data_bounds() noexcept {
     v_min_bounds.resize(n_dim);
     v_max_bounds.resize(n_dim);
     v_coord_id.resize(n_coord);
     exa::iota(v_coord_id, 0, v_coord_id.size(), 0);
     exa::iota(v_min_bounds, 0, v_min_bounds.size(), 0);
+    auto const _n_dim = n_dim;
+    auto const it_coord = v_coord.begin();
     for (int d = 0; d < n_dim; ++d) {
         auto minmax = exa::minmax_element(v_coord_id, 0, v_coord_id.size(),
-                [&](auto const i1, auto const i2) -> bool {
-                    return v_coord[i1 * n_dim + d] < v_coord[i2 * n_dim + d];
+//                [&](auto const i1, auto const i2) -> bool {
+//                    return v_coord[i1 * n_dim + d] < v_coord[i2 * n_dim + d];
+//                });
+                [=]
+#ifdef CUDA_ON
+    __device__
+#endif
+                (auto const i1, auto const i2) -> bool {
+                    return *(it_coord + (i1 * _n_dim) + d) < *(it_coord + (i2 * _n_dim) + d);
+//                    return v_coord[i1 * n_dim + d] < v_coord[i2 * n_dim + d];
                 });
         v_min_bounds[d] = v_coord[(minmax.first * n_dim) + d];
         v_max_bounds[d] = v_coord[(minmax.second * n_dim) + d];
     }
     v_dim_order.resize(n_dim);
     exa::iota(v_dim_order, 0, v_dim_order.size(), 0);
-    exa::sort(v_dim_order, 0, v_dim_order.size(), [&](int const &d1, int const &d2) -> bool {
-       return (v_max_bounds[d1] - v_min_bounds[d1]) > (v_max_bounds[d2] - v_min_bounds[d2]);
+    auto const i_min_begin = v_min_bounds.begin();
+    auto const i_max_begin = v_max_bounds.begin();
+    exa::sort(v_dim_order, 0, v_dim_order.size(), [=]
+#ifdef CUDA_ON
+            __device__
+#endif
+        (int const &d1, int const &d2) -> bool {
+//       return (v_max_bounds[d1] - v_min_bounds[d1]) > (v_max_bounds[d2] - v_min_bounds[d2]);
+        return (*(i_max_begin + d1) - *(i_min_begin + d1)) > (*(i_max_begin + d2) - *(i_min_begin + d2));
     });
 }
 
-void nc_tree::collect_cells_in_reach(d_vec<int> &v_point_index, d_vec<int> &v_cell_reach,
+void data_process::collect_cells_in_reach(d_vec<int> &v_point_index, d_vec<int> &v_cell_reach,
         d_vec<int> &v_point_reach_offset, d_vec<int> &v_point_reach_size) noexcept {
     int const n_points = v_point_index.size();
-    s_vec<int> v_point_reach_full(9 * n_points, -1);
+    d_vec<int> v_point_reach_full(9 * n_points, -1);
 
+    auto const it_coord_cell_index = v_coord_cell_index.begin();
+    auto const it_point_reach_size = v_point_reach_size.begin();
+    auto const it_point_index = v_point_index.begin();
+    auto const _dim_part_0 = v_dim_part_size[0];
+    auto const _dim_part_1 = v_dim_part_size[1];
+    exa::for_each(0, n_points, [=](int const &i) -> void {
+        if (*(it_point_index + i) < 0) {
+            *(it_point_reach_size + i) = 0;
+            return;
+        }
+
+    });
+    /*
     exa::for_each(0, n_points, [&](int const &i) -> void {
         if (v_point_index[i] < 0) {
             v_point_reach_size[i] = 0;
@@ -93,20 +125,33 @@ void nc_tree::collect_cells_in_reach(d_vec<int> &v_point_index, d_vec<int> &v_ce
         }
         v_point_reach_size[i] = i_index - begin;
     });
+     */
 
 //    auto sum = exa::reduce(v_point_reach_size, 0, v_point_reach_size.size(), 0);
     exa::exclusive_scan(v_point_reach_size, v_point_reach_offset, 0, v_point_reach_size.size(), 0, 0);
     v_cell_reach.resize(v_point_reach_full.size());
-    exa::copy_if(v_point_reach_full, v_cell_reach, 0, v_point_reach_full.size(), 0, [](int const &val) -> bool {
+    exa::copy_if(v_point_reach_full, v_cell_reach, 0, v_point_reach_full.size(), 0, []
+#ifdef CUDA_ON
+    __device__
+#endif
+    (int const &val) -> bool {
         return val >= 0;
     });
 }
 
-void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data, magmaMPI mpi) noexcept {
-    exa::for_each(0, v_point_id.size(), [&](int const &i) -> void {
-        if (v_point_id[i] >= 0) {
+void data_process::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data, magmaMPI mpi) noexcept {
+    auto const it_coord_status = v_coord_status.begin();
+    auto const it_point_id = v_point_id.begin();
+    exa::for_each(0, v_point_id.size(), [=]
+#ifdef CUDA_ON
+            __device__
+#endif
+    (int const &i) -> void {
+        if (*(it_point_id + i) >= 0) {
+//        if (v_point_id[i] >= 0) {
             // local, we can modify the status
-            v_coord_status[v_point_id[i]] = PROCESSED;
+            *(it_coord_status + *(it_point_id + i)) = PROCESSED;
+//            v_coord_status[v_point_id[i]] = PROCESSED;
         }
     });
     // calculate cell index
@@ -116,9 +161,9 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data,
     });
 
     // obtain reach
-    s_vec<int> v_point_cells_in_reach(v_point_id.size());
-    s_vec<int> v_point_cell_reach_offset(v_point_id.size());
-    s_vec<int> v_point_cell_reach_size(v_point_id.size());
+    d_vec<int> v_point_cells_in_reach(v_point_id.size());
+    d_vec<int> v_point_cell_reach_offset(v_point_id.size());
+    d_vec<int> v_point_cell_reach_size(v_point_id.size());
 
     magma_util::measure_duration("Collect Cells: ", mpi.rank == 0, [&]() -> void {
         collect_cells_in_reach(v_point_index, v_point_cells_in_reach, v_point_cell_reach_offset,
@@ -141,30 +186,21 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data,
         }
         v_points_in_reach_size[i] = p_sum;
     });
-
-//    exa::exclusive_scan(v_points_in_reach_size, v_points_in_reach_offset, 0, v_points_in_reach_size.size(), 0, 0);
-//    long long table_size = exa::reduce(v_points_in_reach_size, 0, v_points_in_reach_size.size(), 0);
 #ifdef DEBUG_ON
     if (mpi.rank == 0)
         std::cout << "table_size: " << table_size << std::endl;
 #endif
-//    d_vec<int> v_hit_table(table_size, -1);
-
     d_vec<int> v_point_nn(v_point_id.size(), 0);
 
     magma_util::measure_duration("Nearest Neighbour: ", mpi.rank == 0, [&]() -> void {
         exa::for_each_dynamic(0, v_point_id.size(), [&](int const &i) -> void {
-//        if (v_points_in_reach_size[i] < m)
-//            return;
             int nn = 0;
-//        int cnt = 0;
             for (int ci = 0; ci < v_point_cell_reach_size[i]; ++ci) {
                 int c = v_point_cells_in_reach[v_point_cell_reach_offset[i] + ci];
                 for (int j = 0; j < v_coord_cell_size[c]; ++j) {
                     int id2 = v_coord_id[v_coord_cell_offset[c] + j];
                     if (dist_leq(&v_point_data[i * n_dim], &v_coord[id2 * n_dim], n_dim, e2)) {
                         ++nn;
-//                    v_hit_table[v_points_in_reach_offset[i] + cnt] = id2;
                     }
                 }
             }
@@ -320,7 +356,7 @@ void nc_tree::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data,
      */
 }
 
-void nc_tree::get_result_meta(int &cores, int &noise, int &clusters, int &n, magmaMPI mpi) noexcept {
+void data_process::get_result_meta(int &cores, int &noise, int &clusters, int &n, magmaMPI mpi) noexcept {
     n = n_coord;
     cores = 0;
     for (auto const &nn : v_coord_nn) {
@@ -406,11 +442,10 @@ void nc_tree::get_result_meta(int &cores, int &noise, int &clusters, int &n, mag
 #endif
 }
 
-void nc_tree::select_and_process(magmaMPI mpi) noexcept {
+void data_process::select_and_process(magmaMPI mpi) noexcept {
     v_coord_nn.resize(n_coord, 0);
     v_coord_cluster.resize(n_coord, NO_CLUSTER);
     v_coord_status.resize(n_coord, NOT_PROCESSED);
-
 
     d_vec<int> v_point_id(v_coord_id.size());
 #ifdef DEBUG_ON
@@ -419,7 +454,9 @@ void nc_tree::select_and_process(magmaMPI mpi) noexcept {
 #endif
     exa::iota(v_point_id, 0, v_point_id.size(), 0);
 
+    /*
 //    int n_sample_size = n_coord * mpi.n_nodes / 100;
+    // TODO Estimate this number better
     int n_sample_size = 3500000 * mpi.n_nodes;
 #ifdef DEBUG_ON
     if (mpi.rank == 0)
@@ -447,13 +484,14 @@ void nc_tree::select_and_process(magmaMPI mpi) noexcept {
 #ifdef MPI_ON
         mpi.allGather(v_data_chunk);
 #endif
+        std::cout << "CHECKPOINT!" << std::endl;
         process_points(v_id_chunk, v_data_chunk, mpi);
         ++n_iter;
     }
     if (mpi.rank == 0)
         std::cout << "total iterations: "<< n_iter << std::endl;
+    */
 
-    /*
     d_vec<int> v_id_chunk;
     d_vec<float> v_data_chunk;
     int n_blocks = 1;
@@ -469,10 +507,11 @@ void nc_tree::select_and_process(magmaMPI mpi) noexcept {
                 std::next(v_coord.begin(), (block_offset+block_size)*n_dim));
         process_points(v_id_chunk, v_data_chunk, mpi);
     }
-     */
+
 }
 
-void nc_tree::index_points(d_vec<float> &v_data, d_vec<int> &v_index) noexcept {
+void data_process::index_points(d_vec<float> &v_data, d_vec<int> &v_index) noexcept {
+    /*
     s_vec<int> v_id(v_index.size());
     exa::iota(v_id, 0, v_id.size(), 0);
     exa::transform(v_id, v_index, 0, v_index.size(), 0,
@@ -480,9 +519,33 @@ void nc_tree::index_points(d_vec<float> &v_data, d_vec<int> &v_index) noexcept {
                 return cell_index(v_data[id * n_dim + v_dim_order[0]], v_min_bounds[v_dim_order[0]], e)
                        + (cell_index(v_data[id * n_dim + v_dim_order[1]], v_min_bounds[v_dim_order[1]], e) * v_dim_part_size[0]);
             });
+            */
+    auto const it_coords = v_data.begin();
+    auto const it_index = v_index.begin();
+    auto const _dim_0 = v_dim_order[0];
+    auto const _dim_1 = v_dim_order[1];
+    float const _bound_0 = v_min_bounds[_dim_0];
+    float const _bound_1 = v_min_bounds[_dim_1];
+    int const _mult = v_dim_part_size[0];
+    int const _dim = n_dim;
+    float const _ee = e;
+    exa::for_each(0, v_index.size(), [=]
+#ifdef CUDA_ON
+        __device__
+#endif
+    (int const &i) -> void {
+            *(it_index + i) = (int)( ( *(it_coords + (i * _dim + _dim_0)) - _bound_0 ) / _ee )
+            + (int)( ( *(it_coords + (i * _dim + _dim_1)) - _bound_1 ) / _ee ) * _mult;
+    });
+    /*
+    thrust::transform(it_cnt_begin, it_cnt_end, v_index.begin(), [=]__device__(int const &i) -> int {
+            return (int)( ( *(it_coords + (i * dim + dim_0)) - bound_0 ) / ee )
+            + (int)( ( *(it_coords + (i * dim + dim_1)) - bound_1 ) / ee ) * mult;
+    });
+     */
 }
 
-void nc_tree::initialize_cells() noexcept {
+void data_process::initialize_cells() noexcept {
     v_dim_part_size.resize(2);
     v_dim_part_size[0] = (v_max_bounds[v_dim_order[0]] - v_min_bounds[v_dim_order[0]]) / e + 1;
     v_dim_part_size[1] = (v_max_bounds[v_dim_order[1]] - v_min_bounds[v_dim_order[1]]) / e + 1;
@@ -491,12 +554,55 @@ void nc_tree::initialize_cells() noexcept {
                      " input dataset (" << static_cast<uint64_t>(v_dim_part_size[0]) * v_dim_part_size[1] << ")" << std::endl;
         exit(EXIT_FAILURE);
     }
+    auto v_iota = v_coord_id;
+    d_vec<int> v_point_cell_index(v_coord_id.size());
+    index_points(v_coord, v_point_cell_index);
+
+    exa::sort(v_coord_id, 0, v_coord_id.size(), [&](auto const &i1, auto const &i2) -> bool {
+        return v_point_cell_index[i1] < v_point_cell_index[i2];
+    });
+    v_coord_cell_offset.resize(v_iota.size());
+    v_coord_cell_offset[0] = 0;
+    auto const it_index = v_point_cell_index.begin();
+    auto const it_coord_id = v_coord_id.begin();
+    exa::copy_if(v_iota, v_coord_cell_offset, 1, v_iota.size(), 1,[=]
+#ifdef CUDA_ON
+        __device__
+#endif
+    (int const &i) -> bool {
+        return *(it_index + *(it_coord_id + i)) != *(it_index + *(it_coord_id + i - 1));
+    });
+    v_coord_cell_size.resize(v_coord_cell_offset.size());
+    auto const it_coord_cell_size = v_coord_cell_size.begin();
+    auto const it_coord_cell_offset = v_coord_cell_offset.begin();
+    exa::for_each(0, v_coord_cell_size.size() - 1, [=]
+#ifdef CUDA_ON
+        __device__
+#endif
+    (int const &i) -> void {
+        *(it_coord_cell_size + i) = *(it_coord_cell_offset + i + 1) - *(it_coord_cell_offset + i);
+    });
+    v_coord_cell_size[v_coord_cell_size.size()-1] = n_coord - v_coord_cell_offset[v_coord_cell_size.size()-1];
+    v_coord_cell_index.resize(v_coord_cell_offset.size());
+    auto const it_coord_cell_index = v_coord_cell_index.begin();
+    auto const it_point_cell_index = v_point_cell_index.begin();
+    exa::for_each(0, v_coord_cell_index.size(), [=]
+#ifdef CUDA_ON
+            __device__
+#endif
+    (int const &i) -> void {
+        *(it_coord_cell_index + i) = *(it_point_cell_index + *(it_coord_id + *(it_coord_cell_offset + i)));
+    });
+
+
+    /*
     auto v_point_cell_index = v_coord_id;
     auto v_iota = v_coord_id;
     index_points(v_coord, v_point_cell_index);
     exa::sort(v_coord_id, 0, v_coord_id.size(), [&](auto const &i1, auto const &i2) -> bool {
         return v_point_cell_index[i1] < v_point_cell_index[i2];
     });
+
     v_coord_cell_offset.resize(v_iota.size());
     exa::unique(v_iota, v_coord_cell_offset, 0, v_iota.size(), 0, [&](auto const &i) -> bool {
         if (v_point_cell_index[v_coord_id[i]] != v_point_cell_index[v_coord_id[i-1]])
@@ -515,5 +621,5 @@ void nc_tree::initialize_cells() noexcept {
     exa::transform(v_coord_cell_index, v_coord_cell_index, 0, v_coord_cell_index.size(), 0, [&](int const &i) -> int {
         return v_point_cell_index[v_coord_id[v_coord_cell_offset[i]]];
     });
-
+     */
 }

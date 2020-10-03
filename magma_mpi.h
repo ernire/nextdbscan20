@@ -28,7 +28,6 @@ private:
             rank(mpi_rank), comm(mpi_comm), n_nodes(n_nodes) {
 #if defined(DEBUG_ON) && defined(MPI_ON)
         assert(n_nodes > 0);
-        // TODO support dynamic comm size
         assert(mpi_comm == MPI_COMM_WORLD);
         int size;
         MPI_Comm_size(mpi_comm, &size);

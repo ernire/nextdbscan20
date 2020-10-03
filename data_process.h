@@ -2,8 +2,8 @@
 // Created by Ernir Erlingsson on 19.8.2020.
 //
 
-#ifndef NEXTDBSCAN20_NC_TREE_H
-#define NEXTDBSCAN20_NC_TREE_H
+#ifndef NEXTDBSCAN20_DATA_PROCESS_H
+#define NEXTDBSCAN20_DATA_PROCESS_H
 
 static const int NO_CLUSTER = -2;
 static const int NOT_PROCESSED = -2;
@@ -32,7 +32,7 @@ using d_vec = std::vector<T>;
 #endif
 #include "magma_mpi.h"
 
-class nc_tree {
+class data_process {
 private:
     int const m, n_dim;
     int const n_coord;
@@ -73,9 +73,6 @@ private:
 
 public:
     d_vec<float> v_coord;
-#ifdef CUDA_ON
-//    d_vec<float> v_device_coord;
-#endif
     d_vec<float> v_min_bounds, v_max_bounds;
     d_vec<int> v_dim_order;
     d_vec<int> v_coord_id;
@@ -90,11 +87,11 @@ public:
     int cluster_size = 0;
 
 #ifdef CUDA_ON
-    explicit nc_tree(h_vec<float> &v_coord, int const m, float const e, int const n_dim)
+    explicit data_process(h_vec<float> &v_coord, int const m, float const e, int const n_dim)
         : v_coord(v_coord), m(m), n_dim(n_dim), n_coord(v_coord.size()/n_dim), e(e), e2(e*e),
         e_l(get_lowest_e(e, n_dim)) {}
 #else
-    explicit nc_tree(h_vec<float> &v_coord, int const m, float const e, int const n_dim)
+    explicit data_process(h_vec<float> &v_coord, int const m, float const e, int const n_dim)
         : v_coord(std::move(v_coord)), m(m), n_dim(n_dim), n_coord(v_coord.size()/n_dim), e(e), e2(e*e),
         e_l(get_lowest_e(e, n_dim)) {}
 #endif
@@ -117,4 +114,4 @@ public:
 };
 
 
-#endif //NEXTDBSCAN20_NC_TREE_H
+#endif //NEXTDBSCAN20_DATA_PROCESS_H

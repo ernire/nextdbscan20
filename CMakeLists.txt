@@ -8,7 +8,7 @@ set(DEBUG OFF)
 set(GTEST OFF)
 set(BMS OFF)
 
-set(NDB_FILES nextdbscan.cpp nc_tree.cpp)
+set(NDB_FILES nextdbscan.cpp data_process.cpp)
 
 if(GTEST)
     set(CMAKE_CXX_STANDARD 20)
@@ -71,7 +71,7 @@ else()
 #    set(GCC_COVERAGE_COMPILE_FLAGS "-std=c++20 -Wall -Wextra -O3 -fopenmp -fno-exceptions")
 #    set(GCC_COVERAGE_COMPILE_FLAGS "-Wall -Wextra -O3 -fno-exceptions")
     add_executable(nextdbscan20 main.cpp ${NDB_FILES})
-#    add_executable(nextdbscan20 main.cpp nextdbscan.cpp nc_tree.cpp magma_util.cpp)
+#    add_executable(nextdbscan20 main.cpp nextdbscan.cpp data_process.cpp magma_util.cpp)
 endif()
 
 if (MPI)

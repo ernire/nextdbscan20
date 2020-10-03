@@ -26,7 +26,7 @@ nextdbscan::result nextdbscan::start(int const m, float const e, int const n_thr
     }
 
     auto time_start = std::chrono::high_resolution_clock::now();
-    nc_tree nc(v_coord, m, e, n_dim);
+    data_process nc(v_coord, m, e, n_dim);
 
     magma_util::measure_duration("Determine Data Boundaries: ", mpi.rank == 0, [&]() -> void {
         nc.determine_data_bounds();
@@ -35,8 +35,6 @@ nextdbscan::result nextdbscan::start(int const m, float const e, int const n_thr
             mpi.allReduce(nc.v_max_bounds, magmaMPI::max);
         }
     });
-
-
 #ifdef DEBUG_ON
     h_vec<float> v_min_bounds = nc.v_min_bounds;
     h_vec<float> v_max_bounds = nc.v_max_bounds;

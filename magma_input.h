@@ -56,7 +56,7 @@ namespace magma_input {
         return in_file.compare(in_file.size() - s_cmp.size(), s_cmp.size(), s_cmp) == 0;
     }
 
-    void read_input_hdf5(const std::string &in_file, s_vec<float> &v_points, int &n_coord, int &n_dim,
+    void read_input_hdf5(const std::string &in_file, h_vec<float> &v_points, int &n_coord, int &n_dim,
             int const n_nodes, int i_node) noexcept {
 #ifdef HDF5_ON
 //        std::cout << "HDF5 Reading Start: " << std::endl;
@@ -95,7 +95,7 @@ namespace magma_input {
 #endif
     }
 
-    void read_input_bin(const std::string &in_file, s_vec<float> &v_points, int &n_coord, int &n_dim,
+    void read_input_bin(const std::string &in_file, h_vec<float> &v_points, int &n_coord, int &n_dim,
             int const n_nodes, int const i_node) noexcept {
         std::ifstream ifs(in_file, std::ios::in | std::ifstream::binary);
         ifs.read((char *) &n_coord, sizeof(int));
@@ -109,7 +109,7 @@ namespace magma_input {
         ifs.close();
     }
 
-    void read_input_csv(const std::string &in_file, s_vec<float> &v_points, long const n_dim) noexcept {
+    void read_input_csv(const std::string &in_file, h_vec<float> &v_points, long const n_dim) noexcept {
         std::ifstream is(in_file, std::ifstream::in);
         std::string line, buf;
         std::stringstream ss;
@@ -126,7 +126,7 @@ namespace magma_input {
         is.close();
     }
 
-    void read_input(const std::string &in_file, s_vec<float> &v_input, int &n, int &n_dim,
+    void read_input(const std::string &in_file, h_vec<float> &v_input, int &n, int &n_dim,
             int const n_nodes, int const i_node) noexcept {
         std::string s_cmp_bin = ".bin";
         std::string s_cmp_hdf5_1 = ".h5";
@@ -151,52 +151,5 @@ namespace magma_input {
         }
     }
 }
-
-
-
-/*
-    uint read_input_hdf5(const std::string &in_file, s_vec<float> &v_points, unsigned long &max_d,
-            unsigned long const n_nodes, unsigned long const node_index) noexcept {
-        uint n = 0;
-#ifdef HDF5_ON
-        // TODO H5F_ACC_RDONLY ?
-        hid_t file = H5Fopen(in_file.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-        hid_t dset = H5Dopen1(file, "DBSCAN");
-        hid_t fileSpace= H5Dget_space(dset);
-
-        // Read dataset size and calculate chunk size
-        hsize_t count[2];
-        H5Sget_simple_extent_dims(fileSpace, count,NULL);
-        n = count[0];
-        max_d = count[1];
-        std::cout << "HDF5 total size: " << n << std::endl;
-
-//        hsize_t chunkSize =(this->m_totalSize / this->m_mpiSize) + 1;
-//        hsize_t offset[2] = {this->m_mpiRank * chunkSize, 0};
-//        count[0] = std::min(chunkSize, this->m_totalSize - offset[0]);
-//        uint deep_io::get_block_size(const uint block_index, const uint number_of_samples, const uint number_of_blocks) {
-
-        hsize_t block_size =  deep_io::get_block_size(node_index, n, n_nodes);
-        hsize_t block_offset =  deep_io::get_block_start_offset(node_index, n, n_nodes);
-        hsize_t offset[2] = {block_offset, 0};
-        count[0] = block_size;
-        v_points.resize(block_size * max_d);
-
-        hid_t memSpace = H5Screate_simple(2, count, NULL);
-        H5Sselect_hyperslab(fileSpace,H5S_SELECT_SET,offset, NULL, count, NULL);
-        H5Dread(dset, H5T_IEEE_F32LE, memSpace, fileSpace,H5P_DEFAULT, &v_points[0]);
-
-        H5Dclose(dset);
-        H5Fclose(file);
-#endif
-#ifndef HDF5_ON
-        std::cerr << "Error: HDF5 is not supported by this executable. "
-                     "Use the cu-hdf5 flag when building from source to support HDF5." << std::endl;
-        exit(-1);
-#endif
-        return n;
-    }
-
- */
 
 #endif //NEXTDBSCAN20_MAGMA_INPUT_H

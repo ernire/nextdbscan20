@@ -13,7 +13,7 @@
 #include <thrust/functional.h>
 #include <thrust/binary_search.h>
 #include "magma_util.h"
-#include "nc_tree.h"
+#include "data_process.h"
 
 struct pack {
     template<typename Tuple>

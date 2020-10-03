@@ -49,7 +49,7 @@ namespace exa {
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    T reduce(d_vec<T> &v, std::size_t const begin, std::size_t const end, T const startval) {
+    T reduce(d_vec<T> &v, std::size_t const begin, std::size_t const end, T const startval) noexcept {
 #ifdef DEBUG_ON
         assert(begin <= end);
         assert((end - begin) <= (v.size() - begin));
@@ -63,7 +63,7 @@ namespace exa {
     }
 
     template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    std::size_t count_if(d_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) {
+    std::size_t count_if(d_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) noexcept {
 #ifdef DEBUG_ON
         assert(begin <= end);
 #endif
@@ -150,7 +150,7 @@ namespace exa {
     }
 
     template <typename F>
-    void for_each(std::size_t const begin, std::size_t const end, F const &functor) {
+    void for_each(std::size_t const begin, std::size_t const end, F const &functor) noexcept {
 #ifdef DEBUG_ON
         assert(begin <= end);
 #endif
@@ -160,8 +160,14 @@ namespace exa {
         }
     }
 
+    template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    std::size_t lower_bound(d_vec<T> &v, std::size_t const begin, std::size_t const end, T const val) noexcept {
+        auto it = std::lower_bound(std::next(v, begin), std::next(v, end), val);
+        return it - v.begin();
+    }
+
     template <typename F>
-    void for_each_dynamic(std::size_t const begin, std::size_t const end, F const &functor) {
+    void for_each_dynamic(std::size_t const begin, std::size_t const end, F const &functor) noexcept {
 #ifdef DEBUG_ON
         assert(begin <= end);
 #endif
@@ -279,7 +285,7 @@ namespace exa {
 
     template <typename T1, typename T2, typename F, typename std::enable_if<std::is_arithmetic<T1>::value>::type* = nullptr>
     void unique(d_vec<T1> &v_input, d_vec<T2> &v_output, std::size_t const in_begin, std::size_t const in_end,
-            std::size_t const out_begin, F const &functor) {
+            std::size_t const out_begin, F const &functor) noexcept {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
 #endif
