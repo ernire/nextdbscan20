@@ -61,7 +61,7 @@ namespace magma_util {
     template<class T>
     void print_v(const std::string &name, T *v, std::size_t size) noexcept {
         std::cout << name;
-        for (int i = 0; i < size; ++i) {
+        for (std::size_t i = 0; i < size; ++i) {
             std::cout << v[i] << " ";
         }
         std::cout << std::endl;

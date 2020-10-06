@@ -2,138 +2,130 @@
 // Created by Ernir Erlingsson on 18.9.2020.
 //
 
-#ifndef NEXTDBSCAN20_MAGMA_EXA_CU_CUH
-#define NEXTDBSCAN20_MAGMA_EXA_CU_CUH
+#ifndef NEXTDBSCAN20_MAGMA_EXA_CU_H
+#define NEXTDBSCAN20_MAGMA_EXA_CU_H
 
 #include <cassert>
 #include <iostream>
-#include <thrust/host_vector.h>
-#include <thrust/device_vector.h>
-#include <thrust/sequence.h>
-
-template <typename T>
-using h_vec = thrust::host_vector<T>;
-template <typename T>
-using d_vec = thrust::device_vector<T>;
+#include <thrust/binary_search.h>
+#include <thrust/functional.h>
 
 namespace exa {
-    /*
-    template<typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type * = nullptr>
-    void fill(s_vec<T> &v, std::size_t const begin, std::size_t const end, T const val) noexcept {
+
+    template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    void fill(d_vec<T> &v, std::size_t const begin, std::size_t const end, T const val) noexcept {
 #ifdef DEBUG_ON
         assert(begin <= end);
 #endif
-        thrust::fill(std::next(v.begin(), begin), std::next(v.begin(), end), val);
+
     }
-    */
-//    void iota(d_vec<int> &v, std::size_t const begin, std::size_t const end, int const startval) noexcept;
 
-//    template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-//    void iota(d_vec<T> &v, std::size_t const begin, std::size_t const end, std::size_t const startval) noexcept {
-//        thrust::sequence(v.begin(), v.begin());
-//    }
-    void iota(d_vec<int> &v, std::size_t const begin, std::size_t const end, int const startval) noexcept;
-
-    void iota(d_vec<long long> &v, std::size_t const begin, std::size_t const end, long long const startval) noexcept;
-
-//#ifdef DEBUG_ON
-//        assert(begin <= end);
-//#endif
-//        thrust::sequence(std::next(v.begin(), begin), std::next(v.begin(), end), startval);
-//        thrust::sequence(v.begin()+begin, v.begin()+end, startval);
-//    }
-    /*
-    template<typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type * = nullptr>
-    std::size_t count_if(s_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) {
+    template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    void iota(d_vec<T> &v, std::size_t const begin, std::size_t const end, std::size_t const startval) noexcept {
 #ifdef DEBUG_ON
         assert(begin <= end);
 #endif
-//        return thrust::count_if(std::next(v.begin(), begin),std::next(v.begin(), end), functor);
-        return 0;
+        thrust::sequence(v.begin() + begin, v.begin() + end, startval);
     }
 
-    template<typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type * = nullptr>
-    void exclusive_scan(s_vec<T> &v_input, s_vec<T> &v_output, std::size_t const in_begin, std::size_t const in_end,
+    template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    T reduce(d_vec<T> &v, std::size_t const begin, std::size_t const end, T const startval) noexcept {
+#ifdef DEBUG_ON
+        assert(begin <= end);
+        assert((end - begin) <= (v.size() - begin));
+#endif
+        return thrust::reduce(v.begin() + begin, v.begin() + end, startval);
+    }
+
+    template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    std::size_t count_if(d_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) noexcept {
+#ifdef DEBUG_ON
+        assert(begin <= end);
+#endif
+        return thrust::count_if(v.begin() + begin, v.begin() + end, functor);
+    }
+
+    template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    void exclusive_scan(d_vec<T> &v_input, d_vec<T> &v_output, std::size_t const in_begin, std::size_t const in_end,
             std::size_t const out_begin, T const init) noexcept {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
 #endif
-        thrust::exclusive_scan(std::next(v_input.begin(), in_begin), std::next(v_input.begin(), in_end),
-                std::next(v_output.begin(), out_begin), init);
+        thrust::exclusive_scan(v_input.begin() + in_begin, v_input.begin() + in_end, v_output.begin() + out_begin, init);
     }
 
-    template<typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type * = nullptr>
-    void copy_if(s_vec<T> &v_input, s_vec<T> &v_output, std::size_t const in_begin, std::size_t const in_end,
+    template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    void copy_if(d_vec<T> &v_input, std::size_t const in_begin, std::size_t const in_end, d_vec<T> &v_output,
             std::size_t const out_begin, F const &functor) noexcept {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
 #endif
-        if (v_output.size() < v_input.size() + out_begin) {
-            v_output.resize(out_begin + in_end - in_begin);
-        }
-//        auto it = thrust::copy_if(std::next(v_input.begin(), in_begin),
-//                std::next(v_input.begin(), in_end), std::next(v_output.begin(), out_begin), functor);
-//        v_output.resize(std::distance(v_output.begin(), it));
+        auto it = thrust::copy_if(v_input.begin() + in_begin, v_input.begin() + in_end, v_output.begin() + out_begin,
+                functor);
+        v_output.resize(thrust::distance(v_output.begin(), it));
     }
 
-    template<typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type * = nullptr>
-    void for_each(s_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) {
+    template <typename F>
+    void for_each(std::size_t const begin, std::size_t const end, F const &functor) noexcept {
 #ifdef DEBUG_ON
         assert(begin <= end);
 #endif
-//        thrust::for_each(std::next(v.begin(), begin), std::next(v.begin(), end), functor);
-    }
-
-    template<typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type * = nullptr>
-    std::pair<T, T>
-    minmax_element(s_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) noexcept {
-#ifdef DEBUG_ON
-        assert(begin <= end);
-#endif
-//        auto minmax = thrust::minmax_element(std::next(v.begin(), begin), std::next(v.begin(), end), functor);
-//        return std::make_pair(*minmax.first, *minmax.second);
-        return std::make_pair((T)0, (T)0);
+        thrust::counting_iterator<int> it_cnt_begin(begin);
+        thrust::counting_iterator<int> it_cnt_end = it_cnt_begin + (end - begin);
+        thrust::for_each(it_cnt_begin, it_cnt_end, functor);
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    T reduce(s_vec<T> &v, std::size_t const begin, std::size_t const end, T const startval) {
-#ifdef DEBUG_ON
-        assert(begin <= end);
-        assert((end - begin) <= (v.size() - begin));
-#endif
-        return thrust::reduce(std::next(v.begin(), begin), std::next(v.begin(), end), startval);
-    }
-
-    template<typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type * = nullptr>
-    void sort(s_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) noexcept {
-#ifdef DEBUG_ON
-        assert(begin <= end);
-        assert((end - begin) <= (v.size() - begin));
-#endif
-//        thrust::sort(std::next(v.begin(), begin), std::next(v.begin(), end), functor);
-    }
-
-    template<typename T1, typename T2, typename F, typename std::enable_if<std::is_arithmetic<T1>::value>::type * = nullptr>
-    void unique(s_vec<T1> &v_input, s_vec<T2> &v_output, std::size_t const in_begin, std::size_t const in_end,
-            std::size_t const out_begin, F const &functor) {
+    void lower_bound(d_vec<T> &v_input, std::size_t const in_begin, std::size_t const in_end,
+            d_vec<T> &v_value, std::size_t const value_begin, std::size_t const value_end,
+            d_vec<T> &v_output, std::size_t const out_begin, int const stride) noexcept {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
+        assert(value_begin <= value_end);
+        assert(v_input.size() >= (in_end - in_begin));
+        assert(v_output.size() >= ((value_end - value_begin - 1) * (stride + 1)) + out_begin);
 #endif
-//        thrust::unique(std::next(v_input.begin(), in_begin), std::next(v_input.begin(), in_end),
-//                std::next(v_output.begin(), out_begin), functor);
-        v_output.resize(1, 0);
-        exa::copy_if(v_input, v_output, 1, v_input.size(), 1, functor);
+        thrust::counting_iterator<int> it_cnt_begin(in_begin);
+        auto it_trans_begin = thrust::make_transform_iterator(it_cnt_begin, (thrust::placeholders::_1 * (stride + 1)) + out_begin);
+        auto it_perm_begin = thrust::make_permutation_iterator(v_output.begin(), it_trans_begin);
+        thrust::lower_bound(v_input.begin() + in_begin, v_input.begin() + in_end, v_value.begin() + value_begin,
+                v_value.begin() + value_end, it_perm_begin);
+    }
+
+    template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    thrust::pair<T, T> minmax_element(d_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) noexcept {
+#ifdef DEBUG_ON
+        assert(begin <= end);
+#endif
+        auto pair = thrust::minmax_element(v.begin() + begin, v.begin() + end, functor);
+        return thrust::make_pair(*pair.first, *pair.second);
+    }
+
+    template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    void sort(d_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) noexcept {
+#ifdef DEBUG_ON
+        assert(begin <= end);
+        assert((end - begin) <= (v.size() - begin));
+#endif
+        thrust::sort(v.begin() + begin, v.begin() + end, functor);
     }
 
     template <typename T1, typename T2, typename F, typename std::enable_if<std::is_arithmetic<T1>::value>::type* = nullptr>
-    void transform(s_vec<T1> &v_input, s_vec<T2> &v_output, std::size_t const in_begin, std::size_t const in_end,
+    void unique(d_vec<T1> &v_input, d_vec<T2> &v_output, std::size_t const in_begin, std::size_t const in_end,
             std::size_t const out_begin, F const &functor) noexcept {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
 #endif
-        thrust::transform(std::next(v_input.begin(), in_begin), std::next(v_input.begin(), in_end),
-                std::next(v_output.begin(), out_begin), functor);
     }
-     */
+
+    template <typename T1, typename T2, typename F, typename std::enable_if<std::is_arithmetic<T1>::value>::type* = nullptr>
+    void transform(d_vec<T1> &v_input, std::size_t const in_begin, std::size_t const in_end, d_vec<T2> &v_output,
+            std::size_t const out_begin, F const &functor) noexcept {
+#ifdef DEBUG_ON
+        assert(in_begin <= in_end);
+#endif
+        thrust::transform(v_input.begin() + in_begin, v_input.begin() + in_end, v_output.begin() + out_begin, functor);
+    }
+
 };
-#endif //NEXTDBSCAN20_MAGMA_EXA_CU_CUH
+#endif //NEXTDBSCAN20_MAGMA_EXA_CU_H

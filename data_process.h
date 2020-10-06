@@ -11,12 +11,11 @@ static const int SKIPPED = -1;
 static const int MARKED = 0;
 static const int PROCESSED = 1;
 
-
 #ifdef CUDA_ON
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
-template <typename T>
-using s_vec = thrust::host_vector<T>;
+//template <typename T>
+//using s_vec = thrust::host_vector<T>;
 template <typename T>
 using h_vec = thrust::host_vector<T>;
 template <typename T>
@@ -60,7 +59,6 @@ private:
 
     inline static bool dist_leq(float const *coord1, float const *coord2, int const n_dim, float const e2) noexcept {
         float tmp = 0;
-//    #pragma omp simd
         for (auto d = 0; d < n_dim; d++) {
             tmp += (coord1[d] - coord2[d]) * (coord1[d] - coord2[d]);
         }

@@ -26,19 +26,19 @@ nextdbscan::result nextdbscan::start(int const m, float const e, int const n_thr
     }
 
     auto time_start = std::chrono::high_resolution_clock::now();
-    data_process nc(v_coord, m, e, n_dim);
+    data_process dp(v_coord, m, e, n_dim);
 
     magma_util::measure_duration("Determine Data Boundaries: ", mpi.rank == 0, [&]() -> void {
-        nc.determine_data_bounds();
+        dp.determine_data_bounds();
         if (mpi.n_nodes > 1) {
-            mpi.allReduce(nc.v_min_bounds, magmaMPI::min);
-            mpi.allReduce(nc.v_max_bounds, magmaMPI::max);
+            mpi.allReduce(dp.v_min_bounds, magmaMPI::min);
+            mpi.allReduce(dp.v_max_bounds, magmaMPI::max);
         }
     });
 #ifdef DEBUG_ON
-    h_vec<float> v_min_bounds = nc.v_min_bounds;
-    h_vec<float> v_max_bounds = nc.v_max_bounds;
-    h_vec<int> v_dim_order = nc.v_dim_order;
+    h_vec<float> v_min_bounds = dp.v_min_bounds;
+    h_vec<float> v_max_bounds = dp.v_max_bounds;
+    h_vec<int> v_dim_order = dp.v_dim_order;
     if (mpi.rank == 0) {
         magma_util::print_v("min bounds: ", &v_min_bounds[0], v_min_bounds.size());
         magma_util::print_v("max bounds: ", &v_max_bounds[0], v_max_bounds.size());
@@ -46,18 +46,18 @@ nextdbscan::result nextdbscan::start(int const m, float const e, int const n_thr
     }
 #endif
     magma_util::measure_duration("Initialize Cells: ", mpi.rank == 0, [&]() -> void {
-        nc.initialize_cells();
+        dp.initialize_cells();
     });
 #ifdef DEBUG_ON
     if (mpi.rank == 0)
-        std::cout << "number of cells: " << nc.v_coord_cell_size.size() << std::endl;
-    h_vec<int> v_dim_part_size = nc.v_dim_part_size;
+        std::cout << "number of cells: " << dp.v_coord_cell_size.size() << std::endl;
+    h_vec<int> v_dim_part_size = dp.v_dim_part_size;
     if (mpi.rank == 0) {
         magma_util::print_v("dim part size: ", &v_dim_part_size[0], v_dim_part_size.size());
     }
 #endif
     magma_util::measure_duration("Process Points: ", mpi.rank == 0, [&]() -> void {
-        nc.select_and_process(mpi);
+        dp.select_and_process(mpi);
     });
     auto time_end = std::chrono::high_resolution_clock::now();
     if (mpi.rank == 0) {
@@ -68,7 +68,7 @@ nextdbscan::result nextdbscan::start(int const m, float const e, int const n_thr
     }
     auto result = nextdbscan::result();
     magma_util::measure_duration("Collect Results: ", mpi.rank == 0, [&]() -> void {
-        nc.get_result_meta(result.core_count, result.noise, result.clusters, result.n, mpi);
+        dp.get_result_meta(result.core_count, result.noise, result.clusters, result.n, mpi);
     });
     return result;
 //    return nextdbscan::result();

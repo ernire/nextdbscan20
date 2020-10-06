@@ -7,6 +7,7 @@
 
 #include <string>
 #include "data_process.h"
+
 #include "magma_mpi.h"
 
 namespace nextdbscan {
