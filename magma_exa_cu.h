@@ -17,7 +17,7 @@ namespace exa {
 #ifdef DEBUG_ON
         assert(begin <= end);
 #endif
-
+        thrust::fill(v.begin() + begin, v.begin() + end, val);
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>

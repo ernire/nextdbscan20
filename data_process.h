@@ -57,6 +57,16 @@ private:
 
     }
 
+#ifdef CUDA_ON
+    __device__
+    inline static bool dist_leq(thrust::device_ptr<float> const coord1, thrust::device_ptr<float> const coord2, int const n_dim, float const e2) noexcept {
+        float tmp = 0;
+        for (auto d = 0; d < n_dim; d++) {
+            tmp += (coord1[d] - coord2[d]) * (coord1[d] - coord2[d]);
+        }
+        return tmp <= e2;
+    }
+#else
     inline static bool dist_leq(float const *coord1, float const *coord2, int const n_dim, float const e2) noexcept {
         float tmp = 0;
         for (auto d = 0; d < n_dim; d++) {
@@ -64,6 +74,9 @@ private:
         }
         return tmp <= e2;
     }
+#endif
+
+
 
     inline static int cell_index(float const coord, float const bound, float const e) noexcept {
         return (int)(((coord - bound) / e));
