@@ -176,17 +176,6 @@ namespace exa {
         }
     }
 
-    template <typename F>
-    void for_each_dynamic(std::size_t const begin, std::size_t const end, F const &functor) noexcept {
-#ifdef DEBUG_ON
-        assert(begin <= end);
-#endif
-        #pragma omp parallel for schedule(dynamic)
-        for (std::size_t i = begin; i < end; ++i) {
-            functor(i);
-        }
-    }
-
     template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
     std::pair<T, T> minmax_element(d_vec<T> &v, std::size_t const begin, std::size_t const end, F const &functor) noexcept {
 #ifdef DEBUG_ON

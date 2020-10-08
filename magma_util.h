@@ -44,6 +44,17 @@ namespace magma_util {
     }
 
     template<class F>
+    auto build_copy_lambda(F const &functor) noexcept {
+        return [=]
+#ifdef CUDA_ON
+        __device__
+#endif
+        (auto const &i) -> void {
+            functor(i);
+        };
+    }
+
+    template<class F>
     long long measure_duration(std::string const &name, bool const is_verbose, F const &functor) noexcept {
         if (is_verbose) {
             std::cout << name << std::flush;

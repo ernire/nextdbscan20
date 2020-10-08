@@ -81,6 +81,7 @@ public:
     d_vec<int> v_coord_nn;
     d_vec<int> v_coord_status;
     d_vec<int> v_coord_cluster;
+    d_vec<int> v_cluster_id;
     d_vec<int> v_dim_part_size;
     int cluster_size = 0;
 
@@ -94,20 +95,20 @@ public:
         e_l(get_lowest_e(e, n_dim)) {}
 #endif
 
-    void collect_cells_in_reach(d_vec<int> &v_point_index, d_vec<int> &v_cell_reach,
+    void collect_cells_in_reach(d_vec<long long> &v_point_index, d_vec<int> &v_cell_reach,
             d_vec<int> &v_point_reach_offset, d_vec<int> &v_point_reach_size) noexcept;
 
     void determine_data_bounds() noexcept;
 
     void initialize_cells() noexcept;
 
-    void index_points(d_vec<float> &v_data, d_vec<int> &v_index) noexcept;
+    void index_points(d_vec<float> &v_data, d_vec<long long> &v_index) noexcept;
 
     void process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data, magmaMPI mpi) noexcept;
 
     void select_and_process(magmaMPI mpi) noexcept;
 
-    void get_result_meta(int &cores, int &noise, int &clusters, int &n, magmaMPI mpi) noexcept;
+    void get_result_meta(long long &processed, int &cores, int &noise, int &clusters, int &n, magmaMPI mpi) noexcept;
 
 };
 

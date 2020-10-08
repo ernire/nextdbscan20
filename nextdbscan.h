@@ -20,6 +20,7 @@ namespace nextdbscan {
         int clusters;
         int noise;
         int core_count;
+        long long processed;
         int n;
         // TODO avoid a memory leak
 //        int *point_clusters;

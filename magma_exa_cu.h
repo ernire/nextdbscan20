@@ -73,6 +73,22 @@ namespace exa {
         thrust::counting_iterator<int> it_cnt_begin(begin);
         thrust::counting_iterator<int> it_cnt_end = it_cnt_begin + (end - begin);
         thrust::for_each(it_cnt_begin, it_cnt_end, functor);
+//        auto const lam = functor;
+//        thrust::for_each(it_cnt_begin, it_cnt_end, [=]__device__(auto const &i) -> void {
+//            functor(i);
+//        });
+    }
+
+    template <typename F>
+    void for_each_experimental(std::size_t const begin, std::size_t const end, F const &functor) noexcept {
+#ifdef DEBUG_ON
+        assert(begin <= end);
+#endif
+        thrust::counting_iterator<int> it_cnt_begin(begin);
+        thrust::counting_iterator<int> it_cnt_end = it_cnt_begin + (end - begin);
+        thrust::for_each(thrust::device, it_cnt_begin, it_cnt_end, [=]__device__(auto const &i) {
+            functor(i);
+        });
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>

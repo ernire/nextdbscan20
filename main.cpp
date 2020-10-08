@@ -68,7 +68,8 @@ int main(int argc, char** argv) {
 
     if (mpi.rank == 0) {
         std::cout << std::endl;
-        std::cout << "Estimated clusters: " << results.clusters << std::endl;
+        std::cout << "Estimated Clusters: " << results.clusters << std::endl;
+        std::cout << "Processed Points: " << results.processed << std::endl;
         std::cout << "Core Points: " << results.core_count << std::endl;
         std::cout << "Noise Points: " << results.noise << std::endl;
 
