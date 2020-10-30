@@ -7,6 +7,12 @@
 
 #include <cassert>
 #include <iostream>
+#include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
+template <typename T>
+using h_vec = thrust::host_vector<T>;
+template <typename T>
+using d_vec = thrust::device_vector<T>;
 #include <thrust/binary_search.h>
 #include <thrust/functional.h>
 
@@ -46,8 +52,8 @@ namespace exa {
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void exclusive_scan(d_vec<T> &v_input, d_vec<T> &v_output, std::size_t const in_begin, std::size_t const in_end,
-            std::size_t const out_begin, T const init) noexcept {
+    void exclusive_scan(d_vec<T> &v_input, std::size_t const in_begin, std::size_t const in_end,
+            d_vec<T> &v_output, std::size_t const out_begin, T const init) noexcept {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
 #endif

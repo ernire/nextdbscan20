@@ -75,8 +75,8 @@ namespace exa {
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void exclusive_scan(d_vec<T> &v_input, d_vec<T> &v_output, std::size_t const in_begin, std::size_t const in_end,
-            std::size_t const out_begin, T const init) noexcept {
+    void exclusive_scan(d_vec<T> &v_input, std::size_t const in_begin, std::size_t const in_end,
+            d_vec<T> &v_output, std::size_t const out_begin, T const init) noexcept {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
 #endif
@@ -260,8 +260,8 @@ namespace exa {
             #pragma omp single
             {
 //                magma_util::print_vector("bucket sizes: ", v_bucket_size);
-                exclusive_scan(v_par_bucket_size, v_par_bucket_offset, 0, v_par_bucket_size.size(), 0, 0);
-                exclusive_scan(v_bucket_size, v_bucket_offset, 0, v_bucket_size.size(), 0, 0);
+                exclusive_scan(v_par_bucket_size, 0, v_par_bucket_size.size(), v_par_bucket_offset, 0, 0);
+                exclusive_scan(v_bucket_size, 0, v_bucket_size.size(), v_bucket_offset, 0, 0);
             }
             for (int i = 0; i < n_bucket; ++i) {
                 v_t_offset[i] = v_par_bucket_offset[i * n_thread + tid];
@@ -302,6 +302,19 @@ namespace exa {
         #pragma omp parallel for
         for (std::size_t i = in_begin; i < in_end; ++i) {
             v_output[out_begin + i - in_begin] = functor(v_input[i]);
+        }
+    }
+
+    template<class T, class O>
+    void _atomic_op(T* address, T value, O op) {
+        T previous = __sync_fetch_and_add(address, 0);
+
+        while (op(value, previous)) {
+            if  (__sync_bool_compare_and_swap(address, previous, value)) {
+                break;
+            } else {
+                previous = __sync_fetch_and_add(address, 0);
+            }
         }
     }
 }

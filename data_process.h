@@ -5,7 +5,7 @@
 #ifndef NEXTDBSCAN20_DATA_PROCESS_H
 #define NEXTDBSCAN20_DATA_PROCESS_H
 
-static const int NO_CLUSTER = -2;
+static const int NO_CLUSTER = INT32_MAX;
 static const int NOT_PROCESSED = -2;
 static const int SKIPPED = -1;
 static const int MARKED = 0;
@@ -14,8 +14,6 @@ static const int PROCESSED = 1;
 #ifdef CUDA_ON
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
-//template <typename T>
-//using s_vec = thrust::host_vector<T>;
 template <typename T>
 using h_vec = thrust::host_vector<T>;
 template <typename T>
@@ -93,10 +91,9 @@ public:
     d_vec<int> v_coord_cell_size;
     d_vec<int> v_coord_nn;
     d_vec<int> v_coord_status;
-    d_vec<int> v_coord_cluster;
-    d_vec<int> v_cluster_id;
+    d_vec<int> v_coord_cluster_index;
+    d_vec<int> v_cluster_label;
     d_vec<int> v_dim_part_size;
-    int cluster_size = 0;
 
 #ifdef CUDA_ON
     explicit data_process(h_vec<float> &v_coord, int const m, float const e, int const n_dim)
