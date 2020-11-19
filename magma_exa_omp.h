@@ -75,7 +75,7 @@ namespace exa {
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void exclusive_scan(d_vec<T> &v_input, std::size_t const in_begin, std::size_t const in_end,
+    void exclusive_scan(d_vec<T> const &v_input, std::size_t const in_begin, std::size_t const in_end,
             d_vec<T> &v_output, std::size_t const out_begin, T const init) noexcept {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
@@ -156,6 +156,11 @@ namespace exa {
         for (std::size_t i = begin; i < end; ++i) {
             functor(i);
         }
+    }
+
+    template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    std::size_t lower_bound(d_vec<T> const &v_input, std::size_t const begin, std::size_t const end, T const val) {
+        return std::lower_bound(std::next(v_input.begin(), begin), std::next(v_input.begin(), end), val) - v_input.begin();
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
@@ -294,7 +299,7 @@ namespace exa {
     }
 
     template <typename T1, typename T2, typename F, typename std::enable_if<std::is_arithmetic<T1>::value>::type* = nullptr>
-    void transform(d_vec<T1> &v_input, std::size_t const in_begin, std::size_t const in_end, d_vec<T2> &v_output,
+    void transform(d_vec<T1> const &v_input, std::size_t const in_begin, std::size_t const in_end, d_vec<T2> &v_output,
             std::size_t const out_begin, F const &functor) noexcept {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);

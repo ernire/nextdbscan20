@@ -35,6 +35,76 @@ private:
     int const n_coord;
     float const e, e2, e_l;
 
+    uint64_t const bitmask64[64] = {
+        static_cast<uint64_t>(1),
+        static_cast<uint64_t>(1) << 1,
+        static_cast<uint64_t>(1) << 2,
+        static_cast<uint64_t>(1) << 3,
+        static_cast<uint64_t>(1) << 4,
+        static_cast<uint64_t>(1) << 5,
+        static_cast<uint64_t>(1) << 6,
+        static_cast<uint64_t>(1) << 7,
+        static_cast<uint64_t>(1) << 8,
+        static_cast<uint64_t>(1) << 9,
+        static_cast<uint64_t>(1) << 10,
+        static_cast<uint64_t>(1) << 11,
+        static_cast<uint64_t>(1) << 12,
+        static_cast<uint64_t>(1) << 13,
+        static_cast<uint64_t>(1) << 14,
+        static_cast<uint64_t>(1) << 15,
+        static_cast<uint64_t>(1) << 16,
+        static_cast<uint64_t>(1) << 17,
+        static_cast<uint64_t>(1) << 18,
+        static_cast<uint64_t>(1) << 19,
+        static_cast<uint64_t>(1) << 20,
+        static_cast<uint64_t>(1) << 21,
+        static_cast<uint64_t>(1) << 22,
+        static_cast<uint64_t>(1) << 23,
+        static_cast<uint64_t>(1) << 24,
+        static_cast<uint64_t>(1) << 25,
+        static_cast<uint64_t>(1) << 26,
+        static_cast<uint64_t>(1) << 27,
+        static_cast<uint64_t>(1) << 28,
+        static_cast<uint64_t>(1) << 29,
+        static_cast<uint64_t>(1) << 30,
+        static_cast<uint64_t>(1) << 31,
+        static_cast<uint64_t>(1) << 32,
+        static_cast<uint64_t>(1) << 33,
+        static_cast<uint64_t>(1) << 34,
+        static_cast<uint64_t>(1) << 35,
+        static_cast<uint64_t>(1) << 36,
+        static_cast<uint64_t>(1) << 37,
+        static_cast<uint64_t>(1) << 38,
+        static_cast<uint64_t>(1) << 39,
+        static_cast<uint64_t>(1) << 40,
+        static_cast<uint64_t>(1) << 41,
+        static_cast<uint64_t>(1) << 42,
+        static_cast<uint64_t>(1) << 43,
+        static_cast<uint64_t>(1) << 44,
+        static_cast<uint64_t>(1) << 45,
+        static_cast<uint64_t>(1) << 46,
+        static_cast<uint64_t>(1) << 47,
+        static_cast<uint64_t>(1) << 48,
+        static_cast<uint64_t>(1) << 49,
+        static_cast<uint64_t>(1) << 50,
+        static_cast<uint64_t>(1) << 51,
+        static_cast<uint64_t>(1) << 52,
+        static_cast<uint64_t>(1) << 53,
+        static_cast<uint64_t>(1) << 54,
+        static_cast<uint64_t>(1) << 55,
+        static_cast<uint64_t>(1) << 56,
+        static_cast<uint64_t>(1) << 57,
+        static_cast<uint64_t>(1) << 58,
+        static_cast<uint64_t>(1) << 59,
+        static_cast<uint64_t>(1) << 60,
+        static_cast<uint64_t>(1) << 61,
+        static_cast<uint64_t>(1) << 62,
+        static_cast<uint64_t>(1) << 63,
+
+
+
+    };
+
     static float get_lowest_e(float const e, long const n_dim) noexcept {
         // TODO find a less wasteful formula to maintain precision
         return e / 2;
@@ -86,6 +156,7 @@ public:
     d_vec<int> v_dim_order;
     d_vec<int> v_coord_id;
     // TODO optimize memory usage
+    d_vec<int> v_coord_cell_id;
     d_vec<int> v_coord_cell_index;
     d_vec<int> v_coord_cell_offset;
     d_vec<int> v_coord_cell_size;
@@ -105,16 +176,21 @@ public:
         e_l(get_lowest_e(e, n_dim)) {}
 #endif
 
-    void collect_cells_in_reach(d_vec<long long> &v_point_index, d_vec<int> &v_cell_reach,
+    void collect_cells_in_reach(d_vec<long long> const &v_point_index, d_vec<int> &v_cell_reach,
             d_vec<int> &v_point_reach_offset, d_vec<int> &v_point_reach_size) noexcept;
 
     void determine_data_bounds() noexcept;
 
     void initialize_cells() noexcept;
 
-    void index_points(d_vec<float> &v_data, d_vec<long long> &v_index) noexcept;
+    void index_points(d_vec<float> const &v_data, d_vec<long long> &v_index) noexcept;
 
     void process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data, magmaMPI mpi) noexcept;
+
+    void process_points2(d_vec<int> const &v_point_id, d_vec<float> const &v_point_data,
+            d_vec<long long> &v_point_index, d_vec<int> &v_point_cells_in_reach,
+            d_vec<int> &v_point_cell_reach_offset, d_vec<int> &v_point_cell_reach_size,
+            magmaMPI mpi) noexcept;
 
     void select_and_process(magmaMPI mpi) noexcept;
 
