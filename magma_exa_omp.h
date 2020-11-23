@@ -324,6 +324,11 @@ namespace exa {
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    void atomic_min(T* address, T val) {
+        _atomic_op(address, val, std::less<>());
+    }
+
+    template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
     void atomic_add(T& v, T const val) {
         #pragma omp atomic
         v += val;

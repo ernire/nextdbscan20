@@ -112,7 +112,7 @@ void data_process::collect_cells_in_reach(d_vec<long long> const &v_point_index,
     auto const it_full_reach = v_point_reach_full.begin();
     auto const it_bounds = v_lower_bound.begin();
     auto const it_coord_index = v_coord_cell_index.begin();
-
+    auto const _coord_cell_index_size = v_coord_cell_index.size();
     exa::for_each(0, v_point_index.size(), [=]
 #ifdef CUDA_ON
         __device__
@@ -125,41 +125,41 @@ void data_process::collect_cells_in_reach(d_vec<long long> const &v_point_index,
         auto it_begin = it_full_reach + (i * 9);
         auto it_out = it_begin;
         int val = *(it_bounds + (i * 3));
-        if (*(it_coord_index + val) == *(it_point_index + i) - 1) {
+        if (val < _coord_cell_index_size && *(it_coord_index + val) == *(it_point_index + i) - 1) {
             *(it_out++) = val;
             ++val;
         }
-        if (*(it_coord_index + val) == *(it_point_index + i)) {
+        if (val < _coord_cell_index_size && *(it_coord_index + val) == *(it_point_index + i)) {
             *(it_out++) = val;
             ++val;
         }
-        if (*(it_coord_index + val) == *(it_point_index + i) + 1) {
+        if (val < _coord_cell_index_size && *(it_coord_index + val) == *(it_point_index + i) + 1) {
             *(it_out++) = val;
             ++val;
         }
         val = *(it_bounds + (i * 3) + 1);
-        if (*(it_coord_index + val) == *(it_point_index + i) - _dim_part_0 - 1) {
+        if (val < _coord_cell_index_size && *(it_coord_index + val) == *(it_point_index + i) - _dim_part_0 - 1) {
             *(it_out++) = val;
             ++val;
         }
-        if (*(it_coord_index + val) == *(it_point_index + i) - _dim_part_0) {
+        if (val < _coord_cell_index_size && *(it_coord_index + val) == *(it_point_index + i) - _dim_part_0) {
             *(it_out++) = val;
             ++val;
         }
-        if (*(it_coord_index + val) == *(it_point_index + i) - _dim_part_0 + 1) {
+        if (val < _coord_cell_index_size && *(it_coord_index + val) == *(it_point_index + i) - _dim_part_0 + 1) {
             *(it_out++) = val;
             ++val;
         }
         val = *(it_bounds + (i * 3) + 2);
-        if (*(it_coord_index + val) == *(it_point_index + i) + _dim_part_0 - 1) {
+        if (val < _coord_cell_index_size && *(it_coord_index + val) == *(it_point_index + i) + _dim_part_0 - 1) {
             *(it_out++) = val;
             ++val;
         }
-        if (*(it_coord_index + val) == *(it_point_index + i) + _dim_part_0) {
+        if (val < _coord_cell_index_size && *(it_coord_index + val) == *(it_point_index + i) + _dim_part_0) {
             *(it_out++) = val;
             ++val;
         }
-        if (*(it_coord_index + val) == *(it_point_index + i) + _dim_part_0 + 1) {
+        if (val < _coord_cell_index_size && *(it_coord_index + val) == *(it_point_index + i) + _dim_part_0 + 1) {
             *(it_out++) = val;
         }
         *(it_point_reach_size + i) = it_out - it_begin;
@@ -180,7 +180,6 @@ void data_process::process_points2(d_vec<int> const &v_point_id, d_vec<float> co
         d_vec<long long> &v_point_index, d_vec<int> &v_point_cells_in_reach,
         d_vec<int> &v_point_cell_reach_offset, d_vec<int> &v_point_cell_reach_size,
         magmaMPI mpi) noexcept {
-    // TODO move this to the parent
 
     // calculate cell index
     index_points(v_point_data, v_point_index);
@@ -188,14 +187,6 @@ void data_process::process_points2(d_vec<int> const &v_point_id, d_vec<float> co
     collect_cells_in_reach(v_point_index, v_point_cells_in_reach, v_point_cell_reach_offset,
             v_point_cell_reach_size);
 
-
-    // count the total number of possible hits for the cells
-
-    // eliminate all points that belong to cells that can't contain cores
-
-    // count eps / sqrt(2) bounding box
-
-    //
     d_vec<int> v_point_nn(v_point_id.size(), 0);
     auto const it_coord_id = v_coord_id.begin();
     auto const it_point_cell_reach_size = v_point_cell_reach_size.begin();
@@ -242,6 +233,8 @@ void data_process::process_points2(d_vec<int> const &v_point_id, d_vec<float> co
             }
         }
     });
+
+    // TODO move these allocations to parent
     d_vec<int> v_point_iota(v_point_id.size());
     d_vec<int> v_point_core_id(v_point_id.size());
     auto const it_point_core_id = v_point_core_id.begin();
@@ -257,10 +250,8 @@ void data_process::process_points2(d_vec<int> const &v_point_id, d_vec<float> co
         }
         return false;
     });
-//    std::cout << "cores/chunk ratio = " << v_point_core_id.size() << " / " << v_point_id.size() << std::endl;
-
     // setja nýtt core cluster label ef þörf er á
-    auto const _cluster_size = v_cluster_label.size();
+    // TODO move these allocations to parent
     d_vec<int> v_point_cluster_index(v_point_core_id.size(), INT32_MAX);
     auto const it_point_cluster_index = v_point_cluster_index.begin();
     auto const it_coord_cluster_index = v_coord_cluster_index.begin();
@@ -344,7 +335,7 @@ void data_process::process_points2(d_vec<int> const &v_point_id, d_vec<float> co
                 for (int j = 0; j < it_coord_cell_size[c]; ++j) {
                     int const id2 = it_coord_id[it_coord_cell_offset[c] + j];
                     if (it_coord_nn[id2] < _m) continue;
-                    if (it_cluster_label[it_coord_cluster_index[id2]] != it_point_cluster_other[k]/*it_cluster_label[it_point_cluster_index[k]]*/) {
+                    if (it_cluster_label[it_coord_cluster_index[id2]] != it_point_cluster_other[k]) {
                         length = 0;
                         for (int d = 0; d < _n_dim; ++d) {
                             length += (it_point_data[i * _n_dim + d] - it_coord_data[id2 * _n_dim + d]) *
@@ -370,13 +361,13 @@ void data_process::process_points2(d_vec<int> const &v_point_id, d_vec<float> co
 #endif
                 (auto const &k) -> void {
                     if (it_cluster_label[it_point_cluster_index[k]] < it_cluster_label[it_point_cluster_other[k]]) {
-                        exa::_atomic_op(&it_cluster_label[it_point_cluster_other[k]],
-                                it_cluster_label[it_point_cluster_index[k]], std::less<>());
+                        exa::atomic_min(&it_cluster_label[it_point_cluster_other[k]],
+                                it_cluster_label[it_point_cluster_index[k]]);
                         it_running2[0] = 1;
                     } else if (it_cluster_label[it_point_cluster_index[k]] >
                                it_cluster_label[it_point_cluster_other[k]]) {
-                        exa::_atomic_op(&it_cluster_label[it_point_cluster_index[k]],
-                                it_cluster_label[it_point_cluster_other[k]], std::less<>());
+                        exa::atomic_min(&it_cluster_label[it_point_cluster_index[k]],
+                                it_cluster_label[it_point_cluster_other[k]]);
                         it_running2[0] = 1;
                     }
                 });
@@ -405,739 +396,6 @@ void data_process::process_points2(d_vec<int> const &v_point_id, d_vec<float> co
             });
         }
     } while (v_running[0] > 0);
-
-    return;
-
-    exa::for_each(0, v_point_id.size(), [=]
-#ifdef CUDA_ON
-            __device__
-#endif
-    (auto const &i) -> void {
-        // check if this point has already been classified as a core
-        if (it_point_id[i] >= 0 && it_coord_nn[it_point_id[i]] >= _m) {
-//            #pragma omp critical
-//            std::cout << "SKIPPED!" << std::endl;
-            return;
-        }
-        int outer_nn = 0;
-        int inner_nn = 0;
-        bool is_inner;
-        float length;
-        for (int ci = 0; ci < it_point_cell_reach_size[i]; ++ci) {
-            int const c = it_point_cells_in_reach[it_point_cell_reach_offset[i] + ci];
-            for (int j = 0; j < it_coord_cell_size[c]; ++j) {
-                int const id2 = it_coord_id[it_coord_cell_offset[c] + j];
-                is_inner = true;
-                // check inner reach
-                for (int d = 0; d < _n_dim; ++d) {
-                    if (it_point_data[i * _n_dim + d] - it_coord_data[id2 * _n_dim + d] < -_e_inner
-                        || it_point_data[i * _n_dim + d] - it_coord_data[id2 * _n_dim + d] > _e_inner) {
-                        is_inner = false;
-                        break;
-                    }
-                }
-                if (is_inner) {
-                    ++inner_nn;
-                    continue;
-                }
-                // check outer reach only if necessary
-                if (outer_nn + inner_nn < _m) {
-                    length = 0;
-                    for (int d = 0; d < _n_dim; ++d) {
-                        length += (it_point_data[i * _n_dim + d] - it_coord_data[id2 * _n_dim + d]) *
-                                  (it_point_data[i * _n_dim + d] - it_coord_data[id2 * _n_dim + d]);
-                    }
-                    if (length <= _e2) {
-                        ++outer_nn;
-                    }
-                }
-            }
-        }
-        it_point_nn[i] = inner_nn + outer_nn;
-        if (it_point_id[i] >= 0) {
-            it_coord_nn[it_point_id[i]] = it_point_nn[i];
-        }
-        /*
-        if (inner_nn >= _m) {
-//            #pragma omp critical
-//            std::cout << "INNER 1!" << std::endl;
-            for (int ci = 0; ci < it_point_cell_reach_size[i]; ++ci) {
-                int const c = it_point_cells_in_reach[it_point_cell_reach_offset[i] + ci];
-                for (int j = 0; j < it_coord_cell_size[c]; ++j) {
-                    int const id2 = it_coord_id[it_coord_cell_offset[c] + j];
-                    if (it_coord_nn[id2] >= _m)
-                        continue;
-                    is_inner = true;
-                    // check inner reach
-                    for (int d = 0; d < _n_dim; ++d) {
-                        if (it_point_data[i * _n_dim + d] - it_coord_data[id2 * _n_dim + d] < -_e_inner
-                            || it_point_data[i * _n_dim + d] - it_coord_data[id2 * _n_dim + d] > _e_inner) {
-                            is_inner = false;
-                            break;
-                        }
-                    }
-                    if (is_inner) {
-//                        #pragma omp critical
-//                        std::cout << "INNER 2! " << inner_nn << std::endl;
-                        it_coord_nn[id2] = inner_nn;
-                    }
-                }
-            }
-        }
-         */
-    });
-//    // Determine the cluster label (needs to be checked among all)
-//    auto const _cluster_size = v_cluster_label.size();
-//    d_vec<int> v_point_cluster_index(v_point_id.size(), INT32_MAX);
-//    auto const it_point_cluster_index = v_point_cluster_index.begin();
-//    auto const it_coord_cluster_index = v_coord_cluster_index.begin();
-//    d_vec<int> v_point_new_cluster_mark(v_point_id.size(), 0);
-//    d_vec<int> v_point_new_cluster_offset(v_point_id.size(), 0);
-//    auto const it_point_new_cluster_mark = v_point_new_cluster_mark.begin();
-    // Initialize the point cluster label
-    exa::for_each(0, v_point_id.size(), [=]
-#ifdef CUDA_ON
-            __device__
-#endif
-        (auto const &i) -> void {
-//        int const i = it_sorted_order[k];
-        if (it_point_nn[i] < _m) return;
-        else if (it_point_id[i] >= 0) {
-            // Discover which new cores have not been labeled
-            if (it_coord_cluster_index[it_point_id[i]] == NO_CLUSTER) {
-                // mark for a new label
-                it_point_new_cluster_mark[i] = 1;
-            } else {
-                it_point_cluster_index[i] = it_coord_cluster_index[it_point_id[i]];
-            }
-
-        }
-    });
-    // count the new labels
-    /*
-    auto new_cluster_cores = exa::count_if(v_point_new_cluster_mark, 0, v_point_new_cluster_mark.size(), []
-#ifdef CUDA_ON
-            __device__
-#endif
-    (auto const &v) -> bool {
-        return v == 1;
-    });
-
-#ifdef DEBUG_ON
-    std::cout << "new cluster cores: " << new_cluster_cores << std::endl;
-#endif
-    int cluster_index_begin = static_cast<int>(v_cluster_label.size());
-    v_cluster_label.resize(cluster_index_begin + new_cluster_cores);
-    // Create new label ids
-    exa::iota(v_cluster_label, cluster_index_begin, v_cluster_label.size(), cluster_index_begin);
-    // the new label indexes
-    exa::exclusive_scan(v_point_new_cluster_mark, 0, v_point_new_cluster_mark.size(), v_point_new_cluster_offset,
-            0, cluster_index_begin);
-    auto const it_point_new_cluster_offset = v_point_new_cluster_offset.begin();
-    auto const _cluster_label_size = v_cluster_label.size();
-    exa::for_each(0, v_point_id.size(), [=]
-#ifdef CUDA_ON
-            __device__
-#endif
-    (auto const &i) -> void {
-        if (it_point_nn[i] < _m) return;
-        else if (it_point_new_cluster_mark[i] == 1) {
-            // mark the new cluster indexes
-            it_point_cluster_index[i] = it_point_new_cluster_offset[i];
-            if (it_point_id[i] >= 0) {
-                it_coord_cluster_index[it_point_id[i]] = it_point_cluster_index[i];
-            }
-        }
-    });
-    auto const it_cluster_label = v_cluster_label.begin();
-    d_vec<int> v_running(1);
-    auto const it_running = v_running.begin();
-    int iter_cnt = 0;
-
-    d_vec<int> v_point_cluster_minmax(v_point_id.size() * 2, -1);
-    auto const it_point_cluster_minmax = v_point_cluster_minmax.begin();
-    // sort out the non-used points
-    do {
-        ++iter_cnt;
-        v_running[0] = 0;
-        exa::for_each(0, v_point_id.size(), [=]
-#ifdef CUDA_ON
-        __device__
-#endif
-        (auto const &i) -> void {
-            if (it_point_nn[i] < _m) return;
-            // min
-            it_point_cluster_minmax[i*2] = it_cluster_label[it_point_cluster_index[i]];
-            // max
-            it_point_cluster_minmax[i*2+1] = it_cluster_label[it_point_cluster_index[i]];
-            for (int ci = 0; ci < it_point_cell_reach_size[i]; ++ci) {
-                int const c = it_point_cells_in_reach[it_point_cell_reach_offset[i] + ci];
-                for (int j = 0; j < it_coord_cell_size[c]; ++j) {
-                    int const id2 = it_coord_id[it_coord_cell_offset[c] + j];
-                    if (it_coord_nn[id2] < _m) continue;
-                    if (it_cluster_label[it_coord_cluster_index[id2]] < it_point_cluster_minmax[i*2]) {
-                        if (dist_leq(&it_point_data[i * _n_dim], &it_coord_data[id2 * _n_dim], _n_dim, _e2)) {
-                            it_point_cluster_minmax[i * 2] = it_cluster_label[it_coord_cluster_index[id2]];
-                        }
-//                        if (it_cluster_label[it_coord_cluster_index[id2]] > it_point_cluster_minmax[i*2+1])
-//                            std::cerr << "ERRROR!!!" << std::endl;
-                    } else if (it_cluster_label[it_coord_cluster_index[id2]] > it_point_cluster_minmax[i*2+1]) {
-                        if (dist_leq(&it_point_data[i * _n_dim], &it_coord_data[id2 * _n_dim], _n_dim, _e2)) {
-                            it_point_cluster_minmax[i * 2 + 1] = it_cluster_label[it_coord_cluster_index[id2]];
-                        }
-//                        if (it_cluster_label[it_coord_cluster_index[id2]] < it_point_cluster_minmax[i*2])
-//                            std::cerr << "ERRROR!!!" << std::endl;
-                    }
-                }
-            }
-
-        });
-
-
-    } while (v_running[0] > 0);
-          */
-    /*
-    // Determine core labels
-    do {
-        ++iter_cnt;
-        v_running[0] = 0;
-        exa::for_each(0, v_point_id.size(), [=]
-#ifdef CUDA_ON
-            __device__
-#endif
-        (auto const &i) -> void {
-            if (it_point_nn[i] < _m) return;
-
-            assert(it_point_cluster_index[i] >= 0 && it_point_cluster_index[i] < _cluster_label_size);
-            for (int ci = 0; ci < it_point_cell_reach_size[i]; ++ci) {
-                int const c = it_point_cells_in_reach[it_point_cell_reach_offset[i] + ci];
-                for (int j = 0; j < it_coord_cell_size[c]; ++j) {
-                    int const id2 = it_coord_id[it_coord_cell_offset[c] + j];
-                    if (it_coord_nn[id2] < _m) continue;
-                    if (it_cluster_label[it_point_cluster_index[i]] < it_cluster_label[it_coord_cluster_index[id2]]) {
-                        if (dist_leq(&it_point_data[i * _n_dim], &it_coord_data[id2 * _n_dim], _n_dim, _e2)) {
-                            exa::_atomic_op(&it_cluster_label[it_coord_cluster_index[id2]],
-                                    it_cluster_label[it_point_cluster_index[i]], std::less<>());
-                            it_running[0] = 1;
-                        }
-                    } else if (it_cluster_label[it_point_cluster_index[i]] > it_cluster_label[it_coord_cluster_index[id2]]) {
-                        if (dist_leq(&it_point_data[i * _n_dim], &it_coord_data[id2 * _n_dim], _n_dim, _e2)) {
-                            exa::_atomic_op(&it_cluster_label[it_point_cluster_index[i]],
-                                    it_cluster_label[it_coord_cluster_index[id2]], std::less<>());
-                            it_running[0] = 1;
-                        }
-                    }
-                }
-            }
-        });
-
-        // flatten
-        exa::for_each(0, v_coord_id.size(), [=]
-#ifdef CUDA_ON
-                __device__
-#endif
-                (auto const &k) -> void {
-            int const i = it_coord_id[k];
-            if (it_coord_cluster_index[i] == NO_CLUSTER)
-                return;
-            while (it_cluster_label[it_coord_cluster_index[i]] != it_coord_cluster_index[i]) {
-                it_coord_cluster_index[i] = it_cluster_label[it_coord_cluster_index[i]];
-            }
-        });
-    } while (v_running[0] > 0);
-    */
-//#ifdef DEBUG_ON
-//    std::cout << "Label Iterations: " << iter_cnt << std::endl;
-//#endif
-
-/*
-    // Label non-cores
-    exa::for_each(0, v_point_id.size(), [=]
-#ifdef CUDA_ON
-            __device__
-#endif
-    (auto const &i) -> void {
-        if (it_point_nn[i] < _m) return;
-        for (int ci = 0; ci < it_point_cell_reach_size[i]; ++ci) {
-            int const c = it_point_cells_in_reach[it_point_cell_reach_offset[i] + ci];
-            for (int j = 0; j < it_coord_cell_size[c]; ++j) {
-                int const id2 = it_coord_id[it_coord_cell_offset[c] + j];
-                if (it_coord_nn[id2] >= _m) continue;
-                if (it_coord_cluster_index[id2] == NO_CLUSTER) {
-                    if (dist_leq(&it_point_data[i * _n_dim], &it_coord_data[id2 * _n_dim], _n_dim, _e2)) {
-                        exa::_atomic_op(&it_coord_cluster_index[id2], it_cluster_label[it_point_cluster_index[i]],
-                                std::less<>());
-                    }
-                }
-                /*
-                else if (it_cluster_label[it_point_cluster_index[i]] < it_cluster_label[it_coord_cluster_index[id2]]) {
-                    if (dist_leq(&it_point_data[i * _n_dim], &it_coord_data[id2 * _n_dim], _n_dim, _e2)) {
-                        exa::_atomic_op(&it_coord_cluster_index[id2],
-                                it_cluster_label[it_point_cluster_index[i]], std::less<>());
-                        if (it_coord_status[id2] == NOT_PROCESSED) {
-                            it_coord_status[id2] = MARKED;
-                        }
-                    }
-                } else if (it_cluster_label[it_point_cluster_index[i]] > it_cluster_label[it_coord_cluster_index[id2]]
-                           && it_coord_status[id2] == NOT_PROCESSED) {
-                    if (dist_leq(&it_point_data[i * _n_dim], &it_coord_data[id2 * _n_dim], _n_dim, _e2)) {
-                        it_coord_status[id2] = MARKED;
-                    }
-                }
-                */
-//            }
-//        }
-//    });
-    /*
-    // flatten again
-    exa::for_each(0, v_coord_id.size(), [=]
-#ifdef CUDA_ON
-            __device__
-#endif
-            (auto const &k) -> void {
-        int const i = it_coord_id[k];
-        if (it_coord_cluster_index[i] == NO_CLUSTER)
-            return;
-        while (it_cluster_label[it_coord_cluster_index[i]] != it_coord_cluster_index[i]) {
-            it_coord_cluster_index[i] = it_cluster_label[it_coord_cluster_index[i]];
-        }
-    });
-*/
-    return;
-
-
-
-
-    if (v_coord_cell_id.empty()) {
-        // Store the coord to cell map
-        v_coord_cell_id.resize(n_coord);
-        auto const it_coord_cell_id = v_coord_cell_id.begin();
-        exa::for_each(0, v_coord_cell_size.size(), [=]
-#ifdef CUDA_ON
-        __device__
-#endif
-        (auto const &i) -> void {
-            for (int j = 0; j < it_coord_cell_size[i]; ++j) {
-                int const id2 = it_coord_id[it_coord_cell_offset[i] + j];
-                it_coord_cell_id[id2] = i;
-            }
-        });
-    }
-    auto const it_coord_cell_id = v_coord_cell_id.begin();
-//    auto const it_point_id = v_point_id.begin();
-    d_vec<uint64_t> v_cell_use(v_coord_cell_size.size());
-    d_vec<uint64_t> v_hit(n_coord);
-//    d_vec<int> v_point_nn(v_point_id.size(), 0);
-    auto const it_cell_use = v_cell_use.begin();
-    auto const it_hit = v_hit.begin();
-//    auto const it_point_data = v_point_data.begin();
-//    auto const it_coord_data = v_coord.begin();
-//    auto const it_point_nn = v_point_nn.begin();
-//    auto const it_coord_nn = v_coord_nn.begin();
-//    auto const _n_dim = n_dim;
-//    auto const _e2 = e2;
-//    auto const _m = m;
-    std::size_t point_begin = 0;
-
-    do {
-        std::size_t point_end = point_begin + 64;
-        if (point_end >= v_point_id.size()) {
-            point_end = v_point_id.size();
-        }
-        exa::fill(v_cell_use, 0, v_cell_use.size(), static_cast<uint64_t>(0));
-        exa::fill(v_hit, 0, v_hit.size(), static_cast<uint64_t>(0));
-
-        exa::for_each(0, point_end - point_begin, [=]
-#ifdef CUDA_ON
-        __device__
-#endif
-        (auto const &i) -> void {
-            for (int ci = 0; ci < it_point_cell_reach_size[i + point_begin]; ++ci) {
-                int const c = it_point_cells_in_reach[it_point_cell_reach_offset[i + point_begin] + ci];
-                // TODO
-//                #pragma omp atomic
-//                it_cell_use[c] += it_bitmask64[i];
-//                it_cell_use[c] = it_cell_use[c] + it_bitmask64[i];
-//                it_cell_use[c] += static_cast<uint64_t>(1) << i;
-                exa::atomic_add(it_cell_use[c], static_cast<uint64_t>(1) << i);
-            }
-        });
-        // determine the hit masks
-        exa::for_each(0, n_coord, [=]
-#ifdef CUDA_ON
-        __device__
-#endif
-        (auto const &i) -> void {
-            int hit_mask = 0;
-            for (int j = 0; j < point_end - point_begin; ++j) {
-                if ((it_cell_use[it_coord_cell_id[i]] & (static_cast<uint64_t>(1) << j)) > 0) {
-//                if ((it_cell_use[it_coord_cell_id[i]] & it_bitmask64[j]) > 0) {
-                    float length = 0;
-                    for (int d = 0; d < _n_dim; ++d) {
-                        length += (it_point_data[(point_begin + j) * _n_dim + d] - it_coord_data[i * _n_dim + d]) *
-                                (it_point_data[(point_begin + j) * _n_dim + d] - it_coord_data[i * _n_dim + d]);
-                    }
-                    if (length <= _e2) {
-//                        hit_mask += it_bitmask64[j];
-                        hit_mask += (static_cast<uint64_t>(1) << j);
-                        if (it_point_nn[point_begin + j] < _m) {
-                            // TODO generalize
-//                            #pragma omp atomic
-//                            it_point_nn[point_begin + j] = it_point_nn;
-                            exa::atomic_add(it_point_nn[point_begin + j], 1);
-                        }
-                    }
-
-
-                    /*
-                    if (dist_leq(&it_point_data[(point_begin + j) * _n_dim], &it_coord_data[i * _n_dim],
-                            _n_dim, _e2)) {
-
-//                        hit_mask += bitmask64[j];
-                        hit_mask += (static_cast<uint64_t>(1) << j);
-                        if (it_point_nn[point_begin + j] < _m) {
-                            // TODO generalize
-                            #pragma omp atomic
-                            ++it_point_nn[point_begin + j];
-                        }
-                    }
-                     */
-                }
-            }
-            if (hit_mask > 0) {
-                it_hit[i] = hit_mask;
-            }
-        });
-        exa::for_each(0, point_end - point_begin, [=]
-#ifdef CUDA_ON
-            __device__
-#endif
-        (auto const &i) -> void {
-            if (it_point_nn[point_begin + i] >= _m && it_point_id[point_begin + i] >= 0) {
-                it_coord_nn[it_point_id[point_begin + i]] = _m;
-            }
-        });
-        point_begin += 64;
-    } while(point_begin < v_point_id.size());
-
-
-
-
-
-}
-
-void data_process::process_points(d_vec<int> &v_point_id, d_vec<float> &v_point_data, magmaMPI mpi) noexcept {
-    auto const it_coord_status = v_coord_status.begin();
-    auto const it_point_id = v_point_id.begin();
-
-    // calculate cell index
-    d_vec<long long> v_point_index(v_point_id.size());
-    index_points(v_point_data, v_point_index);
-
-    // obtain reach
-    d_vec<int> v_point_cells_in_reach(v_point_id.size());
-    d_vec<int> v_point_cell_reach_offset(v_point_id.size());
-    d_vec<int> v_point_cell_reach_size(v_point_id.size());
-
-    collect_cells_in_reach(v_point_index, v_point_cells_in_reach, v_point_cell_reach_offset,
-            v_point_cell_reach_size);
-
-#ifdef DEBUG_ON
-    if (mpi.rank == 0)
-        std::cout << "v_point_cells_in_reach size: " << v_point_cells_in_reach.size() << std::endl;
-#endif
-
-    d_vec<int> v_points_in_reach_size(v_point_id.size(), 0);
-    d_vec<int> v_points_in_reach_offset(v_point_id.size());
-
-    auto const it_point_cell_reach_size = v_point_cell_reach_size.begin();
-    auto const it_coord_cell_size = v_coord_cell_size.begin();
-    auto const it_point_cells_in_reach = v_point_cells_in_reach.begin();
-    auto const it_point_cell_reach_offset = v_point_cell_reach_offset.begin();
-    auto const it_points_in_reach_size = v_points_in_reach_size.begin();
-    // calculate points in reach for each processed point
-    exa::for_each(0, v_point_id.size(), [=]
-#ifdef CUDA_ON
-    __device__
-#endif
-    (auto const &i) -> void {
-        auto p_sum = 0;
-        for (auto j = 0; j < it_point_cell_reach_size[i]; ++j) {
-            p_sum += it_coord_cell_size[it_point_cells_in_reach[it_point_cell_reach_offset[i] + j]];
-        }
-        it_points_in_reach_size[i] = p_sum;
-    });
-
-    auto const it_points_in_reach = v_points_in_reach_size.begin();
-    d_vec<int> v_sorted_order(v_point_id.size());
-    exa::iota(v_sorted_order, 0, v_sorted_order.size(), 0);
-    exa::sort(v_sorted_order, 0, v_sorted_order.size(), [=]
-#ifdef CUDA_ON
-    __device__
-#endif
-    (auto const &i1, auto const &i2) -> bool {
-        return it_points_in_reach[i1] > it_points_in_reach[i2];
-    });
-
-    d_vec<int> v_point_nn(v_point_id.size(), 0);
-    auto const it_coord_id = v_coord_id.begin();
-    auto const it_coord_cell_offset = v_coord_cell_offset.begin();
-    auto const it_point_data = v_point_data.begin();
-    auto const it_coord_data = v_coord.begin();
-    auto const it_point_nn = v_point_nn.begin();
-    auto const it_coord_nn = v_coord_nn.begin();
-    auto const it_sorted_order = v_sorted_order.begin();
-    auto const _n_dim = n_dim;
-    auto const _e2 = e2;
-    auto const _m = m;
-
-    exa::for_each(0, v_point_id.size(), [=]
-#ifdef CUDA_ON
-        __device__
-#endif
-    (auto const &k) -> void {
-        int const i = it_sorted_order[k];
-        if (it_point_id[i] >= 0) {
-            it_point_nn[i] = it_coord_nn[it_point_id[i]];
-            it_coord_status[it_point_id[i]] = MARKED;
-            it_coord_nn[it_point_id[i]] = 0;
-        }
-    });
-
-    exa::for_each(0, v_point_id.size(), [=]
-#ifdef CUDA_ON
-    __device__
-#endif
-    (auto const &k) -> void {
-        int const i = it_sorted_order[k];
-        int nn = it_point_nn[i];
-        for (int ci = 0; ci < it_point_cell_reach_size[i]; ++ci) {
-            int const c = it_point_cells_in_reach[it_point_cell_reach_offset[i] + ci];
-            /*
-            for (int j = 0; j < it_coord_cell_size[c]; ++j) {
-                int const id2 = it_coord_id[it_coord_cell_offset[c] + j];
-                if (it_coord_status[id2] == PROCESSED || (nn >= _m && it_coord_nn[id2] >= _m)) {
-                    continue;
-                } else if (it_point_id[i] >= 0 && it_coord_status[it_point_id[i]] == MARKED
-                    && it_coord_status[id2] == MARKED && it_point_id[i] >= id2) {
-                        continue;
-                }
-                // continue if both are already cores
-                if (dist_leq(&it_point_data[i * _n_dim], &it_coord_data[id2 * _n_dim], _n_dim, _e2)) {
-                    ++nn;
-                    #pragma omp atomic
-                    ++it_coord_nn[id2];
-                }
-            }
-             */
-        }
-        it_point_nn[i] = nn;
-        /*
-        if (it_point_id[i] >= 0) {
-            it_coord_nn[it_point_id[i]] += it_point_nn[i];
-            it_point_nn[i] = it_coord_nn[it_point_id[i]];
-        }
-         */
-    });
-
-
-    /*
-#ifdef MPI_ON
-    mpi.allReduce(v_point_nn, magmaMPI::max);
-#endif
-
-    d_vec<int> v_point_new_cluster_mark(v_point_id.size(), 0);
-    d_vec<int> v_point_new_cluster_offset(v_point_id.size(), 0);
-    auto const it_point_new_cluster_mark = v_point_new_cluster_mark.begin();
-    d_vec<int> v_point_cluster_index(v_point_id.size(), INT32_MAX);
-    auto const it_point_cluster_index = v_point_cluster_index.begin();
-    auto const it_coord_cluster_index = v_coord_cluster_index.begin();
-    auto const _cluster_size = v_cluster_label.size();
-
-    // Initialize the point cluster label
-    exa::for_each(0, v_point_id.size(), [=]
-#ifdef CUDA_ON
-            __device__
-#endif
-    (auto const &k) -> void {
-        int const i = it_sorted_order[k];
-        if (it_point_nn[i] < _m) return;
-        else if (it_point_id[i] >= 0) {
-            // Discover which new cores have not been labeled
-            if (it_coord_cluster_index[it_point_id[i]] == NO_CLUSTER) {
-                // mark for a new label
-                it_point_new_cluster_mark[i] = 1;
-            } else {
-                it_point_cluster_index[i] = it_coord_cluster_index[it_point_id[i]];
-            }
-
-        }
-    });
-#ifdef MPI_ON
-    mpi.allReduce(v_point_new_cluster, magmaMPI::max);
-#endif
-
-    // count the new labels
-    auto new_cluster_cores = exa::count_if(v_point_new_cluster_mark, 0, v_point_new_cluster_mark.size(), []
-#ifdef CUDA_ON
-        __device__
-#endif
-    (auto const &v) -> bool {
-        return v == 1;
-    });
-#ifdef DEBUG_ON
-    std::cout << "new cluster cores: " << new_cluster_cores << std::endl;
-#endif
-    int cluster_index_begin = static_cast<int>(v_cluster_label.size());
-    v_cluster_label.resize(cluster_index_begin + new_cluster_cores);
-    // Create new label ids
-    exa::iota(v_cluster_label, cluster_index_begin, v_cluster_label.size(), cluster_index_begin);
-    // the new label indexes
-    exa::exclusive_scan(v_point_new_cluster_mark, 0, v_point_new_cluster_mark.size(), v_point_new_cluster_offset,
-            0, cluster_index_begin);
-    auto const it_point_new_cluster_offset = v_point_new_cluster_offset.begin();
-    auto const _cluster_label_size = v_cluster_label.size();
-    exa::for_each(0, v_point_id.size(), [=]
-#ifdef CUDA_ON
-        __device__
-#endif
-    (auto const &k) -> void {
-        int const i = it_sorted_order[k];
-        if (it_point_nn[i] < _m) return;
-        else if (it_point_new_cluster_mark[i] == 1) {
-            // mark the new cluster indexes
-            it_point_cluster_index[i] = it_point_new_cluster_offset[i];
-            if (it_point_id[i] >= 0) {
-                it_coord_cluster_index[it_point_id[i]] = it_point_cluster_index[i];
-            }
-        }
-    });
-#ifdef MPI_ON
-    mpi.allReduce(v_point_new_cluster, magmaMPI::max);
-#endif
-
-    auto const it_cluster_label = v_cluster_label.begin();
-    d_vec<int> v_running(1);
-    auto const it_running = v_running.begin();
-    int iter_cnt = 0;
-
-    // Determine core labels
-    do {
-        ++iter_cnt;
-        v_running[0] = 0;
-        exa::for_each(0, v_point_id.size(), [=]
-#ifdef CUDA_ON
-        __device__
-#endif
-        (auto const &k) -> void {
-            int const i = it_sorted_order[k];
-            if (it_point_nn[i] < _m) return;
-
-            assert(it_point_cluster_index[i] >= 0 && it_point_cluster_index[i] < _cluster_label_size);
-            for (int ci = 0; ci < it_point_cell_reach_size[i]; ++ci) {
-                int const c = it_point_cells_in_reach[it_point_cell_reach_offset[i] + ci];
-                for (int j = 0; j < it_coord_cell_size[c]; ++j) {
-                    int const id2 = it_coord_id[it_coord_cell_offset[c] + j];
-                    if (it_coord_nn[id2] < _m) continue;
-                    if (it_cluster_label[it_point_cluster_index[i]] < it_cluster_label[it_coord_cluster_index[id2]]) {
-                        if (dist_leq(&it_point_data[i * _n_dim], &it_coord_data[id2 * _n_dim], _n_dim, _e2)) {
-                            exa::_atomic_op(&it_cluster_label[it_coord_cluster_index[id2]],
-                                    it_cluster_label[it_point_cluster_index[i]], std::less<>());
-                            it_running[0] = 1;
-                        }
-                    } else if (it_cluster_label[it_point_cluster_index[i]] > it_cluster_label[it_coord_cluster_index[id2]]) {
-                        if (dist_leq(&it_point_data[i * _n_dim], &it_coord_data[id2 * _n_dim], _n_dim, _e2)) {
-                            exa::_atomic_op(&it_cluster_label[it_point_cluster_index[i]],
-                                    it_cluster_label[it_coord_cluster_index[id2]], std::less<>());
-                            it_running[0] = 1;
-                        }
-                    }
-                }
-            }
-        });
-
-        // flatten
-        exa::for_each(0, v_coord_id.size(), [=]
-#ifdef CUDA_ON
-        __device__
-#endif
-    (auto const &k) -> void {
-            int const i = it_coord_id[k];
-            if (it_coord_cluster_index[i] == NO_CLUSTER)
-                return;
-            while (it_cluster_label[it_coord_cluster_index[i]] != it_coord_cluster_index[i]) {
-                it_coord_cluster_index[i] = it_cluster_label[it_coord_cluster_index[i]];
-            }
-        });
-    } while (v_running[0] > 0);
-
-#ifdef DEBUG_ON
-    std::cout << "Label Iterations: " << iter_cnt << std::endl;
-#endif
-
-    // Label non-cores
-    exa::for_each(0, v_point_id.size(), [=]
-#ifdef CUDA_ON
-        __device__
-#endif
-    (auto const &k) -> void {
-        int const i = it_sorted_order[k];
-        if (it_point_nn[i] < _m) return;
-        for (int ci = 0; ci < it_point_cell_reach_size[i]; ++ci) {
-            int const c = it_point_cells_in_reach[it_point_cell_reach_offset[i] + ci];
-            for (int j = 0; j < it_coord_cell_size[c]; ++j) {
-                int const id2 = it_coord_id[it_coord_cell_offset[c] + j];
-                if (it_coord_nn[id2] >= _m) continue;
-                if (it_coord_cluster_index[id2] == NO_CLUSTER) {
-                    if (dist_leq(&it_point_data[i * _n_dim], &it_coord_data[id2 * _n_dim], _n_dim, _e2)) {
-                        exa::_atomic_op(&it_coord_cluster_index[id2], it_cluster_label[it_point_cluster_index[i]],
-                                std::less<>());
-                    }
-                } else if (it_cluster_label[it_point_cluster_index[i]] < it_cluster_label[it_coord_cluster_index[id2]]) {
-                    if (dist_leq(&it_point_data[i * _n_dim], &it_coord_data[id2 * _n_dim], _n_dim, _e2)) {
-                        exa::_atomic_op(&it_coord_cluster_index[id2],
-                                it_cluster_label[it_point_cluster_index[i]], std::less<>());
-                        if (it_coord_status[id2] == NOT_PROCESSED) {
-                            it_coord_status[id2] = MARKED;
-                        }
-                    }
-                } else if (it_cluster_label[it_point_cluster_index[i]] > it_cluster_label[it_coord_cluster_index[id2]]
-                    && it_coord_status[id2] == NOT_PROCESSED) {
-                    if (dist_leq(&it_point_data[i * _n_dim], &it_coord_data[id2 * _n_dim], _n_dim, _e2)) {
-                        it_coord_status[id2] = MARKED;
-                    }
-                }
-            }
-        }
-    });
-
-    // flatten again
-    exa::for_each(0, v_coord_id.size(), [=]
-#ifdef CUDA_ON
-        __device__
-#endif
-    (auto const &k) -> void {
-        int const i = it_coord_id[k];
-        if (it_coord_cluster_index[i] == NO_CLUSTER)
-            return;
-        while (it_cluster_label[it_coord_cluster_index[i]] != it_coord_cluster_index[i]) {
-            it_coord_cluster_index[i] = it_cluster_label[it_coord_cluster_index[i]];
-        }
-    });
-//#ifdef CUDA_ON
-//    print_cuda_memory_usage();
-//#endif
-    */
-    exa::for_each(0, v_point_id.size(), [=]
-#ifdef CUDA_ON
-            __device__
-#endif
-    (int const &i) -> void {
-        if (it_point_id[i] >= 0)
-            it_coord_status[it_point_id[i]] = PROCESSED;
-    });
-
-
 }
 
 void data_process::get_result_meta(long long &processed, int &cores, int &noise, int &clusters, int &n, magmaMPI mpi) noexcept {
@@ -1236,7 +494,7 @@ void data_process::get_result_meta(long long &processed, int &cores, int &noise,
     d_vec<int> v_node_cluster_offset(mpi.n_nodes, 0);
     v_node_cluster_size[mpi.rank] = clusters+1;
     mpi.allReduce(v_node_cluster_size, magmaMPI::sum);
-    exa::exclusive_scan(v_node_cluster_size, v_node_cluster_offset, 0, v_node_cluster_size.size(), 0, 0);
+    exa::exclusive_scan(v_node_cluster_size, 0, v_node_cluster_size.size(), v_node_cluster_offset, 0, 0);
     d_vec<int> v_node_unique(exa::reduce(v_node_cluster_size, 0, v_node_cluster_size.size(), 0));
 #ifdef DEBUG_ON
     if (mpi.rank == 0)
@@ -1276,7 +534,7 @@ void data_process::select_and_process(magmaMPI mpi) noexcept {
 
     auto const it_coord_status = v_coord_status.begin();
     int coord_begin = 0;
-    int chunk_size = 32768;
+    int chunk_size = 2048;
 //    int chunk_size = n_coord / 2;
     d_vec<int> v_point_id(chunk_size);
     d_vec<float> v_point_data(chunk_size * n_dim);
@@ -1308,6 +566,7 @@ void data_process::select_and_process(magmaMPI mpi) noexcept {
         process_points2(v_point_id, v_point_data, v_point_index, v_point_cells_in_reach,
                 v_point_cell_reach_offset, v_point_cell_reach_size, mpi);
         coord_begin += chunk_size;
+        coord_begin = n_coord;
     } while (coord_begin < n_coord);
 }
 

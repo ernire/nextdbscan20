@@ -14,7 +14,7 @@
 
 namespace exa {
     template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void copy_if(d_vec<T> &v_input, d_vec<T> &v_output, std::size_t const in_begin, std::size_t const in_end,
+    void copy_if(d_vec<T> &v_input, std::size_t const in_begin, std::size_t const in_end, d_vec<T> &v_output,
             std::size_t const out_begin, F const &functor) {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
@@ -124,17 +124,44 @@ namespace exa {
         assert(in_begin <= in_end);
 #endif
         v_output.resize(1, 0);
-        exa::copy_if(v_input, v_output, 1, v_input.size(), 1, functor);
+        exa::copy_if(v_input, 1, v_input.size(), v_output, 1, functor);
     }
 
     template <typename T1, typename T2, typename F, typename std::enable_if<std::is_arithmetic<T1>::value>::type* = nullptr>
-    void transform(d_vec<T1> &v_input, d_vec<T2> &v_output, std::size_t const in_begin, std::size_t const in_end,
+    void transform(d_vec<T1> const &v_input, std::size_t const in_begin, std::size_t const in_end, d_vec<T2> &v_output,
             std::size_t const out_begin, F const &functor) noexcept {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
 #endif
         std::transform(std::next(v_input.begin(), in_begin),
                 std::next(v_input.begin(), in_end), std::next(v_output.begin(), out_begin), functor);
+    }
+
+    template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    void atomic_min(T* address, T val) {
+        *address = val;
+    }
+
+    template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    std::size_t lower_bound(d_vec<T> const &v_input, std::size_t const begin, std::size_t const end, T const val) {
+        return std::lower_bound(std::next(v_input.begin(), begin), std::next(v_input.begin(), end), val) - v_input.begin();
+    }
+
+    template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    void lower_bound(d_vec<T> &v_input, std::size_t const in_begin, std::size_t const in_end,
+            d_vec<T> &v_value, std::size_t const value_begin, std::size_t const value_end,
+            d_vec<T> &v_output, std::size_t const out_begin, int const stride) noexcept {
+#ifdef DEBUG_ON
+        assert(in_begin <= in_end);
+        assert(value_begin <= value_end);
+        assert(v_input.size() >= (in_end - in_begin));
+        assert(v_output.size() >= ((value_end - value_begin - 1) * (stride + 1)) + out_begin);
+#endif
+        auto it_input_begin = std::next(v_input.begin(), in_begin);
+        auto it_input_end = std::next(v_input.begin(), in_end);
+        for (T i = value_begin; i < value_end; ++i) {
+            v_output[out_begin + (i * (stride + 1))] = std::lower_bound(it_input_begin, it_input_end, v_value[i]) - v_input.begin();
+        }
     }
 }
 
