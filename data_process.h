@@ -5,10 +5,22 @@
 #ifndef NEXTDBSCAN20_DATA_PROCESS_H
 #define NEXTDBSCAN20_DATA_PROCESS_H
 
+#ifdef CUDA_ON
+__device__
+#endif
 static const int NO_CLUSTER = INT32_MAX;
+#ifdef CUDA_ON
+__device__
+#endif
 static const int NOT_PROCESSED = -2;
 static const int SKIPPED = -1;
+#ifdef CUDA_ON
+__device__
+#endif
 static const int MARKED = 0;
+#ifdef CUDA_ON
+__device__
+#endif
 static const int PROCESSED = 1;
 
 #ifdef CUDA_ON
@@ -29,13 +41,9 @@ using d_vec = std::vector<T>;
 #endif
 #include "magma_mpi.h"
 
-class data_process {
-private:
-    int const m, n_dim;
-    int const n_coord;
-    float const e, e2, e_l;
 
-    uint64_t const bitmask64[64] = {
+/*
+uint64_t const bitmask64[64] = {
         static_cast<uint64_t>(1),
         static_cast<uint64_t>(1) << 1,
         static_cast<uint64_t>(1) << 2,
@@ -100,10 +108,14 @@ private:
         static_cast<uint64_t>(1) << 61,
         static_cast<uint64_t>(1) << 62,
         static_cast<uint64_t>(1) << 63,
+};
+ */
 
-
-
-    };
+class data_process {
+private:
+    int const m, n_dim;
+    int const n_coord;
+    float const e, e2, e_l;
 
     static float get_lowest_e(float const e, long const n_dim) noexcept {
         // TODO find a less wasteful formula to maintain precision

@@ -52,7 +52,7 @@ namespace exa {
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void exclusive_scan(d_vec<T> &v_input, std::size_t const in_begin, std::size_t const in_end,
+    void exclusive_scan(d_vec<T> const &v_input, std::size_t const in_begin, std::size_t const in_end,
             d_vec<T> &v_output, std::size_t const out_begin, T const init) noexcept {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
@@ -141,12 +141,19 @@ namespace exa {
     }
 
     template <typename T1, typename T2, typename F, typename std::enable_if<std::is_arithmetic<T1>::value>::type* = nullptr>
-    void transform(d_vec<T1> &v_input, std::size_t const in_begin, std::size_t const in_end, d_vec<T2> &v_output,
+    void transform(d_vec<T1> const &v_input, std::size_t const in_begin, std::size_t const in_end, d_vec<T2> &v_output,
             std::size_t const out_begin, F const &functor) noexcept {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
 #endif
         thrust::transform(v_input.begin() + in_begin, v_input.begin() + in_end, v_output.begin() + out_begin, functor);
+    }
+
+    template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    __device__
+    void atomic_add(thrust::device_reference<T> &v, T const val) {
+        v = v + val;
+//        atomicAdd(&v, val);
     }
 
 };

@@ -322,6 +322,12 @@ namespace exa {
             }
         }
     }
+
+    template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    void atomic_add(T& v, T const val) {
+        #pragma omp atomic
+        v += val;
+    }
 }
 
 #endif //EXAFOUNDRY_EXA_H
