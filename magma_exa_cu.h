@@ -100,17 +100,43 @@ namespace exa {
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
     void lower_bound(d_vec<T> &v_input, std::size_t const in_begin, std::size_t const in_end,
             d_vec<T> &v_value, std::size_t const value_begin, std::size_t const value_end,
-            d_vec<T> &v_output, std::size_t const out_begin, int const stride) noexcept {
+            d_vec<int> &v_output, std::size_t const out_begin, int const stride) noexcept {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
         assert(value_begin <= value_end);
         assert(v_input.size() >= (in_end - in_begin));
         assert(v_output.size() >= ((value_end - value_begin - 1) * (stride + 1)) + out_begin);
 #endif
-        thrust::counting_iterator<int> it_cnt_begin(in_begin);
+//        thrust::counting_iterator<int> it_cnt_begin(in_begin);
+        thrust::counting_iterator<int> it_cnt_begin(0);
         auto it_trans_begin = thrust::make_transform_iterator(it_cnt_begin, (thrust::placeholders::_1 * (stride + 1)) + out_begin);
         auto it_perm_begin = thrust::make_permutation_iterator(v_output.begin(), it_trans_begin);
         thrust::lower_bound(v_input.begin() + in_begin, v_input.begin() + in_end, v_value.begin() + value_begin,
+                v_value.begin() + value_end, it_perm_begin);
+        /*
+        auto it_input_begin = std::next(v_input.begin(), in_begin);
+        auto it_input_end = std::next(v_input.begin(), in_end);
+        #pragma omp parallel for
+        for (std::size_t i = 0; i < value_end - value_begin; ++i) {
+            v_output[out_begin + (i * (stride + 1))] = std::lower_bound(it_input_begin, it_input_end, v_value[i + value_begin]) - v_input.begin();
+        }
+         */
+    }
+
+    template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    void upper_bound(d_vec<T> &v_input, std::size_t const in_begin, std::size_t const in_end,
+            d_vec<T> &v_value, std::size_t const value_begin, std::size_t const value_end,
+            d_vec<int> &v_output, std::size_t const out_begin, int const stride) noexcept {
+#ifdef DEBUG_ON
+        assert(in_begin <= in_end);
+        assert(value_begin <= value_end);
+        assert(v_input.size() >= (in_end - in_begin));
+        assert(v_output.size() >= ((value_end - value_begin - 1) * (stride + 1)) + out_begin);
+#endif
+        thrust::counting_iterator<int> it_cnt_begin(0);
+        auto it_trans_begin = thrust::make_transform_iterator(it_cnt_begin, (thrust::placeholders::_1 * (stride + 1)) + out_begin);
+        auto it_perm_begin = thrust::make_permutation_iterator(v_output.begin(), it_trans_begin);
+        thrust::upper_bound(v_input.begin() + in_begin, v_input.begin() + in_end, v_value.begin() + value_begin,
                 v_value.begin() + value_end, it_perm_begin);
     }
 
@@ -151,17 +177,22 @@ namespace exa {
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
     __device__
-    void atomic_add(thrust::device_reference<T> &v, T const val) {
-        v = v + val;
-//        atomicAdd(&v, val);
+    void atomic_add(thrust::device_ptr<T> &v, T const val) {
+        T * ptr = thrust::raw_pointer_cast(v);
+        atomicAdd(ptr, val);
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
     __device__
     void atomic_min(thrust::device_ptr<T> &v, thrust::device_reference<T> val) {
-        int const value = val;
         T * ptr = thrust::raw_pointer_cast(v);
         atomicMin(ptr, val);
+    }
+
+    template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    void copy(d_vec<T> const &v_input, std::size_t const in_begin, std::size_t const in_end, d_vec<T> &v_output,
+            std::size_t const out_begin) {
+        thrust::copy(v_input.begin() + in_begin, v_input.begin() + in_end, v_output.begin() + out_begin);
     }
 
 };

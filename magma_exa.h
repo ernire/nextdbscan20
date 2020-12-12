@@ -163,6 +163,13 @@ namespace exa {
             v_output[out_begin + (i * (stride + 1))] = std::lower_bound(it_input_begin, it_input_end, v_value[i]) - v_input.begin();
         }
     }
+
+template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+void copy(d_vec<T> const &v_input, std::size_t const in_begin, std::size_t const in_end, d_vec<T> &v_output,
+        std::size_t const out_begin) {
+std::copy(std::next(v_input.begin(), in_begin), std::next(v_input.begin(), in_end),
+        std::next(v_output.begin(), out_begin));
+}
 }
 
 #endif //EXAFOUNDRY_EXA_H

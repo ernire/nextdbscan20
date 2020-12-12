@@ -24,7 +24,6 @@ nextdbscan::result nextdbscan::start(int const m, float const e, int const n_thr
     if (mpi.rank == 0) {
         std::cout << "Read " << n_coord << " points with " << n_dim << " dimensions. " << std::endl;
     }
-
     auto time_start = std::chrono::high_resolution_clock::now();
     data_process dp(v_coord, m, e, n_dim);
 
@@ -67,8 +66,8 @@ nextdbscan::result nextdbscan::start(int const m, float const e, int const n_thr
                   << " milliseconds\n";
     }
     auto result = nextdbscan::result();
-    magma_util::measure_duration("Collect Results: ", mpi.rank == 0, [&]() -> void {
-        dp.get_result_meta(result.processed, result.core_count, result.noise, result.clusters, result.n, mpi);
-    });
+//    magma_util::measure_duration("Collect Results: ", mpi.rank == 0, [&]() -> void {
+//        dp.get_result_meta(result.processed, result.core_count, result.noise, result.clusters, result.n, mpi);
+//    });
     return result;
 }

@@ -166,7 +166,7 @@ namespace exa {
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
     void lower_bound(d_vec<T> &v_input, std::size_t const in_begin, std::size_t const in_end,
             d_vec<T> &v_value, std::size_t const value_begin, std::size_t const value_end,
-            d_vec<T> &v_output, std::size_t const out_begin, int const stride) noexcept {
+            d_vec<int> &v_output, std::size_t const out_begin, int const stride) noexcept {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
         assert(value_begin <= value_end);
@@ -176,8 +176,64 @@ namespace exa {
         auto it_input_begin = std::next(v_input.begin(), in_begin);
         auto it_input_end = std::next(v_input.begin(), in_end);
         #pragma omp parallel for
-        for (T i = value_begin; i < value_end; ++i) {
-            v_output[out_begin + (i * (stride + 1))] = std::lower_bound(it_input_begin, it_input_end, v_value[i]) - v_input.begin();
+        for (std::size_t i = 0; i < value_end - value_begin; ++i) {
+            v_output[out_begin + (i * (stride + 1))] = std::lower_bound(it_input_begin, it_input_end, v_value[i + value_begin]) - it_input_begin;
+        }
+    }
+
+    template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    void lower_bound(d_vec<T> &v_input, std::size_t const in_begin, std::size_t const in_end,
+            d_vec<T> &v_value, std::size_t const value_begin, std::size_t const value_end,
+            d_vec<int> &v_output, std::size_t const out_begin, int const stride, F const &functor) noexcept {
+#ifdef DEBUG_ON
+        assert(in_begin <= in_end);
+        assert(value_begin <= value_end);
+        assert(v_input.size() >= (in_end - in_begin));
+        assert(v_output.size() >= ((value_end - value_begin - 1) * (stride + 1)) + out_begin);
+#endif
+        auto it_input_begin = std::next(v_input.begin(), in_begin);
+        auto it_input_end = std::next(v_input.begin(), in_end);
+#pragma omp parallel for
+        for (std::size_t i = 0; i < value_end - value_begin; ++i) {
+            v_output[out_begin + (i * (stride + 1))] =
+                    std::lower_bound(it_input_begin, it_input_end, v_value[i + value_begin], functor) - it_input_begin;
+        }
+    }
+
+    template <typename T, typename T2, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    void upper_bound(d_vec<T> &v_input, std::size_t const in_begin, std::size_t const in_end,
+            d_vec<T> &v_value, std::size_t const value_begin, std::size_t const value_end,
+            d_vec<T2> &v_output, std::size_t const out_begin, int const stride) noexcept {
+#ifdef DEBUG_ON
+        assert(in_begin <= in_end);
+        assert(value_begin <= value_end);
+        assert(v_input.size() >= (in_end - in_begin));
+        assert(v_output.size() >= ((value_end - value_begin - 1) * (stride + 1)) + out_begin);
+#endif
+        auto it_input_begin = std::next(v_input.begin(), in_begin);
+        auto it_input_end = std::next(v_input.begin(), in_end);
+#pragma omp parallel for
+        for (std::size_t i = 0; i < value_end - value_begin; ++i) {
+            v_output[out_begin + (i * (stride + 1))] = std::upper_bound(it_input_begin, it_input_end, v_value[i + value_begin]) - it_input_begin;
+        }
+    }
+
+    template <typename T, typename F, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    void upper_bound(d_vec<T> &v_input, std::size_t const in_begin, std::size_t const in_end,
+            d_vec<T> &v_value, std::size_t const value_begin, std::size_t const value_end,
+            d_vec<int> &v_output, std::size_t const out_begin, int const stride, F const &functor) noexcept {
+#ifdef DEBUG_ON
+        assert(in_begin <= in_end);
+        assert(value_begin <= value_end);
+        assert(v_input.size() >= (in_end - in_begin));
+        assert(v_output.size() >= ((value_end - value_begin - 1) * (stride + 1)) + out_begin);
+#endif
+        auto it_input_begin = std::next(v_input.begin(), in_begin);
+        auto it_input_end = std::next(v_input.begin(), in_end);
+#pragma omp parallel for
+        for (std::size_t i = 0; i < value_end - value_begin; ++i) {
+            v_output[out_begin + (i * (stride + 1))] =
+                    std::upper_bound(it_input_begin, it_input_end, v_value[i + value_begin], functor) - it_input_begin;
         }
     }
 
@@ -211,6 +267,8 @@ namespace exa {
         assert(begin <= end);
         assert((end - begin) <= (v.size() - begin));
 #endif
+        std::sort(std::next(v.begin(), begin), std::next(v.begin(), end), functor);
+        /*
         // TODO improve heuristic
         if (end - begin < 100000) {
             std::sort(std::next(v.begin(), begin), std::next(v.begin(), end), functor);
@@ -248,7 +306,7 @@ namespace exa {
             int tid = omp_get_thread_num();
             int t_size = magma_util::get_block_size(tid, static_cast<int>(end - begin), n_thread);
             int t_offset = magma_util::get_block_offset(tid, static_cast<int>(end - begin), n_thread);
-            for (std::size_t i = t_offset; i < t_offset + t_size; ++i) {
+            for (int i = t_offset; i < t_offset + t_size; ++i) {
                 v_bucket_index[i + begin] = std::lower_bound(v_samples.begin(), v_samples.end(), v[i + begin], functor)
                         - v_samples.begin();
                 ++v_t_size[v_bucket_index[i + begin]];
@@ -285,10 +343,11 @@ namespace exa {
         }
         v.clear();
         v.insert(v.end(), std::make_move_iterator(v_tmp.begin()), std::make_move_iterator(v_tmp.end()));
+         */
     }
 
     template <typename T1, typename T2, typename F, typename std::enable_if<std::is_arithmetic<T1>::value>::type* = nullptr>
-    void unique(d_vec<T1> &v_input, d_vec<T2> &v_output, std::size_t const in_begin, std::size_t const in_end,
+    void unique(d_vec<T1> &v_input, std::size_t const in_begin, std::size_t const in_end, d_vec<T2> &v_output,
             std::size_t const out_begin, F const &functor) noexcept {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
@@ -329,9 +388,16 @@ namespace exa {
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
-    void atomic_add(T& v, T const val) {
+    void atomic_add(T* address, T const val) {
         #pragma omp atomic
-        v += val;
+        *address += val;
+    }
+
+    template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    void copy(d_vec<T> const &v_input, std::size_t const in_begin, std::size_t const in_end, d_vec<T> &v_output,
+            std::size_t const out_begin) {
+        std::copy(std::next(v_input.begin(), in_begin), std::next(v_input.begin(), in_end),
+                std::next(v_output.begin(), out_begin));
     }
 }
 
