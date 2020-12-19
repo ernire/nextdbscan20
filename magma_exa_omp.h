@@ -119,6 +119,11 @@ namespace exa {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
 #endif
+        auto it_end = std::copy_if(std::next(v_input.begin(), in_begin),
+                std::next(v_input.begin(), in_end),
+                std::next(v_output.begin(), out_begin), functor);
+        v_output.resize(std::distance(v_output.begin(), it_end));
+        /*
         d_vec<int> v_t_val;
 //        d_vec<int>::iterator v_t_output;
         int n_thread = 1;
@@ -145,6 +150,7 @@ namespace exa {
                     it_out);
         }
         v_output.resize(std::distance(v_output.begin(), it_out));
+         */
     }
 
     template <typename F>

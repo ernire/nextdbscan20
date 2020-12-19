@@ -44,6 +44,13 @@ nextdbscan::result nextdbscan::start(int const m, float const e, int const n_thr
         magma_util::print_v("dim order: ", &v_dim_order[0], v_dim_order.size());
     }
 #endif
+
+    magma_util::measure_duration("Build NC Tree: ", mpi.rank == 0, [&]() -> void {
+        dp.build_nc_tree();
+    });
+
+    /*
+
     magma_util::measure_duration("Initialize Cells: ", mpi.rank == 0, [&]() -> void {
         dp.initialize_cells();
     });
@@ -65,6 +72,7 @@ nextdbscan::result nextdbscan::start(int const m, float const e, int const n_thr
                   << std::chrono::duration_cast<std::chrono::milliseconds>(time_end - time_start).count()
                   << " milliseconds\n";
     }
+     */
     auto result = nextdbscan::result();
 //    magma_util::measure_duration("Collect Results: ", mpi.rank == 0, [&]() -> void {
 //        dp.get_result_meta(result.processed, result.core_count, result.noise, result.clusters, result.n, mpi);

@@ -47,6 +47,7 @@ using h_vec = std::vector<T>;
 template <typename T>
 using d_vec = std::vector<T>;
 #endif
+#include <cmath>
 #include "magma_mpi.h"
 
 class data_process {
@@ -57,9 +58,9 @@ private:
 
     static float get_lowest_e(float const e, long const n_dim) noexcept {
         // TODO find a less wasteful formula to maintain precision
-        return e / 2;
+//        return e / 2;
 //        return e / sqrtf(3);
-        /*
+
         if (n_dim <= 3) {
             return e / sqrtf(3);
         } else if (n_dim <= 8) {
@@ -71,7 +72,7 @@ private:
         } else {
             return e / sqrtf(6);
         }
-         */
+
 
     }
 
@@ -110,6 +111,12 @@ public:
     d_vec<int> v_cluster_label;
     d_vec<int> v_dim_part_size;
 
+
+    // nc tree
+    d_vec<int> v_nc_size;
+    d_vec<int> v_nc_offset;
+    d_vec<int> v_nc_lvl_size;
+    d_vec<int> v_nc_lvl_offset;
 #ifdef CUDA_ON
     explicit data_process(h_vec<float> &v_coord, int const m, float const e, int const n_dim)
         : m(m), n_dim(n_dim), n_coord(v_coord.size()/n_dim), e(e), e2(e*e), v_coord(v_coord) {}
@@ -131,6 +138,8 @@ public:
     void determine_data_bounds() noexcept;
 
     void initialize_cells() noexcept;
+
+    void build_nc_tree() noexcept;
 
     void index_points(
             d_vec<float> const &v_data,
