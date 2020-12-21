@@ -72,8 +72,6 @@ private:
         } else {
             return e / sqrtf(6);
         }
-
-
     }
 
 #ifdef CUDA_ON
@@ -117,6 +115,7 @@ public:
     d_vec<int> v_nc_offset;
     d_vec<int> v_nc_lvl_size;
     d_vec<int> v_nc_lvl_offset;
+    d_vec<float> v_cell_AABB;
 #ifdef CUDA_ON
     explicit data_process(h_vec<float> &v_coord, int const m, float const e, int const n_dim)
         : m(m), n_dim(n_dim), n_coord(v_coord.size()/n_dim), e(e), e2(e*e), v_coord(v_coord) {}
@@ -138,6 +137,8 @@ public:
     void determine_data_bounds() noexcept;
 
     void initialize_cells() noexcept;
+
+    void process_local_nc_tree() noexcept;
 
     void build_nc_tree() noexcept;
 
