@@ -119,14 +119,8 @@ namespace exa {
 #ifdef DEBUG_ON
         assert(in_begin <= in_end);
 #endif
-        auto it_end = std::copy_if(std::next(v_input.begin(), in_begin),
-                std::next(v_input.begin(), in_end),
-                std::next(v_output.begin(), out_begin), functor);
-        v_output.resize(std::distance(v_output.begin(), it_end));
-        /*
         d_vec<int> v_t_val;
-//        d_vec<int>::iterator v_t_output;
-        int n_thread = 1;
+        int n_thread;
         #pragma omp parallel
         {
             #pragma omp single
@@ -150,7 +144,6 @@ namespace exa {
                     it_out);
         }
         v_output.resize(std::distance(v_output.begin(), it_out));
-         */
     }
 
     template <typename F>
@@ -273,31 +266,33 @@ namespace exa {
         assert(begin <= end);
         assert((end - begin) <= (v.size() - begin));
 #endif
-        std::sort(std::next(v.begin(), begin), std::next(v.begin(), end), functor);
-        /*
+
         // TODO improve heuristic
         if (end - begin < 100000) {
             std::sort(std::next(v.begin(), begin), std::next(v.begin(), end), functor);
             return;
         }
-        d_vec<T> v_tmp(v.size(), -1);
+        auto const range_begin = std::next(v.begin(), begin);
+        auto const range_size = end - begin;
+
+        d_vec<T> v_tmp(range_size);
         d_vec<T> v_samples;
         d_vec<int> v_bucket_size;
         d_vec<int> v_bucket_offset;
         d_vec<int> v_par_bucket_size;
         d_vec<int> v_par_bucket_offset;
         // optimize to only use needed space
-        d_vec<int> v_bucket_index(v.size());
+        d_vec<int> v_bucket_index(range_size);
         int n_thread = 0, n_bucket = 0;
         #pragma omp parallel
         {
             #pragma omp single
             {
                 n_thread = omp_get_num_threads();
-                int n_samples = n_thread * log10f(v.size());
+                int n_samples = n_thread * log10f(range_size);
                 v_samples.reserve(n_samples);
                 for (int i = 0; i < n_samples; ++i) {
-                    v_samples.push_back(v[((v.size() - 1) / n_samples) * i]);
+                    v_samples.push_back(v[(((range_size - 1) / n_samples) * i) + begin]);
                 }
 //                std::cout << "sample size: " << n_samples << std::endl;
                 std::sort(v_samples.begin(), v_samples.end(), functor);
@@ -310,12 +305,12 @@ namespace exa {
             d_vec<int> v_t_size(n_bucket, 0);
             d_vec<int> v_t_offset(n_bucket);
             int tid = omp_get_thread_num();
-            int t_size = magma_util::get_block_size(tid, static_cast<int>(end - begin), n_thread);
-            int t_offset = magma_util::get_block_offset(tid, static_cast<int>(end - begin), n_thread);
+            int t_size = magma_util::get_block_size(tid, static_cast<int>(range_size), n_thread);
+            int t_offset = magma_util::get_block_offset(tid, static_cast<int>(range_size), n_thread);
             for (int i = t_offset; i < t_offset + t_size; ++i) {
-                v_bucket_index[i + begin] = std::lower_bound(v_samples.begin(), v_samples.end(), v[i + begin], functor)
+                v_bucket_index[i] = std::lower_bound(v_samples.begin(), v_samples.end(), v[i + begin], functor)
                         - v_samples.begin();
-                ++v_t_size[v_bucket_index[i + begin]];
+                ++v_t_size[v_bucket_index[i]];
             }
             for (int i = 0; i < n_bucket; ++i) {
                 v_par_bucket_size[(i * n_thread) + tid] = v_t_size[i];
@@ -328,7 +323,6 @@ namespace exa {
             #pragma omp barrier
             #pragma omp single
             {
-//                magma_util::print_vector("bucket sizes: ", v_bucket_size);
                 exclusive_scan(v_par_bucket_size, 0, v_par_bucket_size.size(), v_par_bucket_offset, 0, 0);
                 exclusive_scan(v_bucket_size, 0, v_bucket_size.size(), v_bucket_offset, 0, 0);
             }
@@ -337,8 +331,8 @@ namespace exa {
             }
             auto v_t_offset_cpy = v_t_offset;
             for (std::size_t i = t_offset; i < t_offset + t_size; ++i) {
-                v_tmp[v_t_offset[v_bucket_index[i + begin]] + begin] = v[i + begin];
-                ++v_t_offset[v_bucket_index[i + begin]];
+                v_tmp[v_t_offset[v_bucket_index[i]]] = v[i + begin];
+                ++v_t_offset[v_bucket_index[i]];
             }
             #pragma omp barrier
             #pragma omp for schedule(dynamic)
@@ -347,9 +341,9 @@ namespace exa {
                         v_bucket_offset[i] + v_bucket_size[i]), functor);
             }
         }
-        v.clear();
-        v.insert(v.end(), std::make_move_iterator(v_tmp.begin()), std::make_move_iterator(v_tmp.end()));
-         */
+        // TODO consider the move semantics below
+//        std::move(std::make_move_iterator(v_tmp.begin()), std::make_move_iterator(v_tmp.end()), range_begin);
+        std::copy(v_tmp.begin(), v_tmp.end(), range_begin);
     }
 
     template <typename T1, typename T2, typename F, typename std::enable_if<std::is_arithmetic<T1>::value>::type* = nullptr>
