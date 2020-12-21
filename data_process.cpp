@@ -1869,7 +1869,8 @@ void data_process::initialize_cells() noexcept {
 
 void data_process::build_nc_tree() noexcept {
     auto const _n_dim = n_dim;
-    auto const _e_i = get_lowest_e(e, n_dim);//sqrtf(2);
+//    auto const _e_i = get_lowest_e(e, n_dim);//sqrtf(2);
+    auto const _e_i = e / sqrtf(2);
     auto const _m = m;
     auto const _e = e;
     auto const _e2 = e2;
@@ -2047,61 +2048,22 @@ void data_process::build_nc_tree() noexcept {
         }
     }
 
-//    std::cout << "CHECK" << std::endl;
-//    for (auto const &v : v_cell_AABB) {
-//        assert(v == _max_float || v == _min_float);
-//    }
-//    std::cout << "CHECK END" << std::endl;
-
-
     // level 0
     for (int i = 0; i < v_nc_lvl_size[0]; ++i) {
-//        if (v_coord_cell_size[i] <= 0) {
-//            std::cerr << "ERROR!!!" << std::endl;
-//        }
         for (int j = 0; j < v_coord_cell_size[i]; ++j) {
             auto const p = it_coord_cell_index[it_coord_cell_offset[i] + j];
             for (int d = 0; d < _n_dim; ++d) {
-//                if (it_coord[p * _n_dim + d] == _max_float || it_coord[p * _n_dim + d] == _min_float) {
-//                    std::cerr << "ERROR!!!" << std::endl;
-//                }
-//                if (j == 0)
-//                    assert(it_cell_AABB[(i * _n_dim * 2) + d] == _max_float);
                 if (it_coord[p * _n_dim + d] < it_cell_AABB[(i * _n_dim * 2) + d]) {
                     it_cell_AABB[(i * _n_dim * 2) + d] = it_coord[p * _n_dim + d];
                 }
-//                else if (j == 0) {
-//                    std::cout << "ERROR!!! " << it_coord[p * _n_dim + d] << " : " << it_cell_AABB[(i * _n_dim * 2) + d] << std::endl;
-//                }
-//                if (j == 0)
-//                    assert(it_cell_AABB[(i * _n_dim * 2) + d] != _max_float);
             }
             for (int d = 0; d < _n_dim; ++d) {
-//                if (j == 0)
-//                    assert(it_cell_AABB[(i * _n_dim * 2) + _n_dim + d] == _min_float);
                 if (it_coord[p * _n_dim + d] > it_cell_AABB[(i * _n_dim * 2) + _n_dim + d]) {
                     it_cell_AABB[(i * _n_dim * 2) + _n_dim + d] = it_coord[p * _n_dim + d];
                 }
-//                else if (j == 0) {
-//                    std::cout << "ERROR!!! " << it_coord[p * _n_dim + d] << " : " << it_cell_AABB[(i * _n_dim * 2) + _n_dim + d] << std::endl;
-//                    std::cout << "Error ct. " << (it_coord[p * _n_dim + d] >= it_cell_AABB[(i * _n_dim * 2) + _n_dim + d]) << std::endl;
-//                    std::cout << "Error ct. " << (it_coord[p * _n_dim + d] < it_cell_AABB[(i * _n_dim * 2) + _n_dim + d]) << std::endl;
-//                }
-//                if (j == 0)
-//                    assert(it_cell_AABB[(i * _n_dim * 2) + _n_dim + d] != _min_float);
             }
         }
     }
-
-    std::cout << "CHECK END 2" << std::endl;
-
-    for (int i = 0; i < v_nc_lvl_size[0]; ++i) {
-        for (int d = 0; d < 2 * _n_dim; ++d) {
-            assert(it_cell_AABB[(i * _n_dim * 2) + d] != _min_float && it_cell_AABB[(i * _n_dim * 2) + d] != _max_float);
-        }
-    }
-
-    std::cout << "CHECK END 3" << std::endl;
 
     for (int lvl = 1; lvl < nc_height; ++lvl) {
         for (int i = 0; i < v_nc_lvl_size[lvl]; ++i) {
@@ -2118,61 +2080,6 @@ void data_process::build_nc_tree() noexcept {
             }
         }
     }
-
-//    for (int lvl = 0; lvl < nc_height; ++lvl) {
-//        std::cout << "lvl: " << lvl << std::endl;
-//        magma_util::print_v("min: ", &it_cell_AABB[it_nc_lvl_offset[lvl]], n_dim);
-//    }
-
-
-
-    // TEST
-
-
-
-
-    /*
-    for (int c1 = 0; c1 < it_nc_lvl_size[0]; ++c1) {
-        for (int c2 = c1 + 1; c2 < it_nc_lvl_size[0]; ++c2) {
-            bool are_connected = true;
-            auto const min1 = &it_cell_AABB[((it_nc_lvl_offset[0] + c1) * _n_dim * 2)];
-            auto const max1 = &it_cell_AABB[((it_nc_lvl_offset[0] + c1) * _n_dim * 2) + _n_dim];
-            auto const min2 = &it_cell_AABB[((it_nc_lvl_offset[0] + c2) * _n_dim * 2)];
-            auto const max2 = &it_cell_AABB[((it_nc_lvl_offset[0] + c2) * _n_dim * 2) + _n_dim];
-
-            for (int d = 0; d < _n_dim; ++d) {
-                if ((min2[d] > (max1[d] + _e) || min2[d] < (min1[d] - _e)) &&
-                    (min1[d] > (max2[d] + _e) || min1[d] < (min2[d] - _e)) &&
-                    (max2[d] > (max1[d] + _e) || max2[d] < (min1[d] - _e)) &&
-                    (max1[d] > (max2[d] + _e) || max1[d] < (min2[d] - _e))) {
-                    are_connected = false;
-                    break;
-                }
-            }
-            if (are_connected) {
-                for (int i = 0; i < it_coord_cell_size[it_nc_lvl_offset[0] + c1]; ++i) {
-                    int p1 = it_coord_cell_index[it_nc_lvl_offset[0] + it_coord_cell_offset[c1] + i];
-                    for (int j = 0; j < it_coord_cell_size[it_nc_lvl_offset[0] + c2]; ++j) {
-                        int p2 = it_coord_cell_index[it_nc_lvl_offset[0] + it_coord_cell_offset[c2] + j];
-                        float length = 0;
-                        for (int d = 0; d < _n_dim; ++d) {
-                            length += (it_coord[p1 * _n_dim + d] - it_coord[p2 * _n_dim + d]) *
-                                      (it_coord[p1 * _n_dim + d] - it_coord[p2 * _n_dim + d]);
-                            if (length > _e2) {
-                                break;
-                            }
-                        }
-                        if (length <= _e2) {
-                            it_coord_nn[p1] = it_coord_nn[p1] + 1;
-                            it_coord_nn[p2] = it_coord_nn[p2] + 1;
-                        }
-                    }
-                }
-            }
-        }
-    }
-     */
-
 }
 
 void data_process::process_local_nc_tree() noexcept {
@@ -2197,8 +2104,6 @@ void data_process::process_local_nc_tree() noexcept {
     }
 
     // expand bounding boxes for reach
-
-//    std::cout << v_cell_AABB.size() << " : " << v_coord_cell_size.size() << std::endl;
     for (std::size_t i = 0; i < v_coord_cell_size.size(); ++i) {
         int d = 0;
         for (; d < n_dim; ++d) {
@@ -2209,21 +2114,17 @@ void data_process::process_local_nc_tree() noexcept {
         }
     }
 
-//    int track_height = static_cast<int>((v_nc_lvl_size.size() - 2));
-    int track_height = 0;
+    int track_height = static_cast<int>((v_nc_lvl_size.size() - 1));
     d_vec<int> v_tracker(n_coord * track_height * 2, 0);
     auto const it_tracker = v_tracker.begin();
-    exa::for_each(0, 200, [=]
+    exa::for_each(0, n_coord, [=]
 #ifdef CUDA_ON
     __device__
 #endif
     (auto const &i) -> void {
         int hits = 0;
-//        if (i % 10000 == 0)
-//            std::cout << "i: " << i << std::endl;
         auto const p = &it_coord[i * n_dim];
         auto const stack = &it_tracker[i * track_height];
-//        int lvl = track_height - 1;
         for (int c1 = 0; c1 < it_nc_lvl_size[track_height - 1]; ++c1) {
             int lvl = track_height - 1;
             stack[lvl * 2] = c1;
@@ -2235,10 +2136,6 @@ void data_process::process_local_nc_tree() noexcept {
                 if (j == 0) {
                     auto const min2 = &it_cell_AABB[((it_nc_lvl_offset[lvl] + c) * n_dim * 2)];
                     auto const max2 = &it_cell_AABB[((it_nc_lvl_offset[lvl] + c) * n_dim * 2) + n_dim];
-//                    if (lvl < 6) {
-//                        magma_util::print_v("min: ", min2, n_dim);
-//                        magma_util::print_v("max: ", max2, n_dim);
-//                    }
                     for (int d = 0; d < n_dim; ++d) {
                         if (p[d] < min2[d] || p[d] > max2[d]) {
                             are_connected = false;
@@ -2248,8 +2145,6 @@ void data_process::process_local_nc_tree() noexcept {
                 }
                 if (are_connected) {
                     if (j < it_coord_cell_size[it_nc_lvl_offset[lvl] + c]) {
-                        if (j > 0)
-                            std::cout << "i: " << i << " c: " << c << " j: " << j << " lvl: " << lvl << std::endl;
                         stack[lvl * 2 + 1] = j + 1;
                         if (lvl == 0) {
                             for (int k = 0; k < it_coord_cell_size[c]; ++k) {
@@ -2268,6 +2163,7 @@ void data_process::process_local_nc_tree() noexcept {
                                     }
                                 }
                             }
+                            ++lvl;
                         } else {
                             --lvl;
                             stack[lvl * 2] = it_coord_cell_index[n_coord + it_nc_lvl_offset[lvl] + it_coord_cell_offset[it_nc_lvl_offset[lvl+1] + c] + j];
@@ -2277,114 +2173,11 @@ void data_process::process_local_nc_tree() noexcept {
                         ++lvl;
                     }
                 } else {
-//                    std::cout << "ELSE 3" << std::endl;
                     ++lvl;
                 }
-            } while (lvl < track_height - 1);
+            } while (lvl < track_height);
         }
-//            for (int c = 0; c < it_nc_lvl_size[track_height - lvl]; ++c) {
-//
-//            }
-//        }
-//        auto first = i * (v_nc_lvl_size.size() - 1);
-//        auto last = first + track_height - 1;
-//        auto curr = first;
-//        it_tracker[first] = -1;
-//        while(it_tracker[first] < v_nc_lvl_size[track_height]) {
-//            ++it_tracker[curr];
-//        }
-
-        /*
-        for (int c = 0; c < it_nc_lvl_size[0]; ++c) {
-            bool are_connected = true;
-            auto const min2 = &it_cell_AABB[((it_nc_lvl_offset[0] + c) * n_dim * 2)];
-            auto const max2 = &it_cell_AABB[((it_nc_lvl_offset[0] + c) * n_dim * 2) + n_dim];
-            for (int d = 0; d < n_dim; ++d) {
-                if (p[d] < min2[d] || p[d] > max2[d]) {
-                    are_connected = false;
-                    break;
-                }
-            }
-            if (are_connected) {
-                for (int j = 0; j < it_coord_cell_size[it_nc_lvl_offset[0] + c]; ++j) {
-                    auto const p2 = &it_coord[it_coord_cell_index[it_nc_lvl_offset[0] + it_coord_cell_offset[c] + j] * n_dim];
-                    float length = 0;
-                    for (int d = 0; d < n_dim; ++d) {
-                        length += (p[d] - p2[d]) * (p[d] - p2[d]);
-                        if (length > e2) {
-                            break;
-                        }
-                    }
-                    if (length <= e2) {
-                        if (++hits == m) {
-                            it_coord_nn[i] = m;
-                            return;
-                        }
-                    }
-                }
-            }
-        }
-        */
     });
 
-    /*
-    int track_height = static_cast<int>((v_nc_lvl_size.size() - 1));
-    d_vec<int> v_tracker(n_coord * track_height, 0);
-    auto const it_tracker = v_tracker.begin();
-    for (std::size_t i = 0; i < n_coord; ++i) {
-        auto const p = &it_coord[i * n_dim];
-        int l = track_height;
-        auto first = i * (v_nc_lvl_size.size() - 1);
-        auto last = first + track_height - 1;
-        auto curr = first;
-        it_tracker[first] = -1;
-        while(it_tracker[first] < v_nc_lvl_size[track_height]) {
-            ++it_tracker[curr];
-        }
-    }
-     */
-
-
-    /*
-    for (int c1 = 0; c1 < it_nc_lvl_size[0]; ++c1) {
-        for (int c2 = c1 + 1; c2 < it_nc_lvl_size[0]; ++c2) {
-            bool are_connected = true;
-            auto const min1 = &it_cell_AABB[((it_nc_lvl_offset[0] + c1) * _n_dim * 2)];
-            auto const max1 = &it_cell_AABB[((it_nc_lvl_offset[0] + c1) * _n_dim * 2) + _n_dim];
-            auto const min2 = &it_cell_AABB[((it_nc_lvl_offset[0] + c2) * _n_dim * 2)];
-            auto const max2 = &it_cell_AABB[((it_nc_lvl_offset[0] + c2) * _n_dim * 2) + _n_dim];
-
-            for (int d = 0; d < _n_dim; ++d) {
-                if ((min2[d] > (max1[d] + _e) || min2[d] < (min1[d] - _e)) &&
-                    (min1[d] > (max2[d] + _e) || min1[d] < (min2[d] - _e)) &&
-                    (max2[d] > (max1[d] + _e) || max2[d] < (min1[d] - _e)) &&
-                    (max1[d] > (max2[d] + _e) || max1[d] < (min2[d] - _e))) {
-                    are_connected = false;
-                    break;
-                }
-            }
-            if (are_connected) {
-                for (int i = 0; i < it_coord_cell_size[it_nc_lvl_offset[0] + c1]; ++i) {
-                    int p1 = it_coord_cell_index[it_nc_lvl_offset[0] + it_coord_cell_offset[c1] + i];
-                    for (int j = 0; j < it_coord_cell_size[it_nc_lvl_offset[0] + c2]; ++j) {
-                        int p2 = it_coord_cell_index[it_nc_lvl_offset[0] + it_coord_cell_offset[c2] + j];
-                        float length = 0;
-                        for (int d = 0; d < _n_dim; ++d) {
-                            length += (it_coord[p1 * _n_dim + d] - it_coord[p2 * _n_dim + d]) *
-                                      (it_coord[p1 * _n_dim + d] - it_coord[p2 * _n_dim + d]);
-                            if (length > _e2) {
-                                break;
-                            }
-                        }
-                        if (length <= _e2) {
-                            it_coord_nn[p1] = it_coord_nn[p1] + 1;
-                            it_coord_nn[p2] = it_coord_nn[p2] + 1;
-                        }
-                    }
-                }
-            }
-        }
-    }
-     */
 }
 
