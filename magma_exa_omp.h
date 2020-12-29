@@ -67,7 +67,7 @@ namespace exa {
 #endif
         std::size_t cnt = 0;
         #pragma omp parallel for reduction(+:cnt)
-        for (int i = begin; i < end; ++i) {
+        for (std::size_t i = begin; i < end; ++i) {
             if (functor(v[i]))
                 ++cnt;
         }
@@ -101,7 +101,7 @@ namespace exa {
             {
                 v_t_offset = v_t_size;
                 v_t_offset[0] = init;
-                for (auto i = 1; i < v_t_offset.size(); ++i) {
+                for (std::size_t i = 1; i < v_t_offset.size(); ++i) {
                     v_t_offset[i] = v_t_offset[i - 1] + v_t_size[i - 1];
                 }
 

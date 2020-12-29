@@ -27,7 +27,6 @@ static const float FLOAT_MAX = 3.40282347e+38F;
 #ifdef CUDA_ON
 __device__
 #endif
-static const float _FLOAT_MAX = 3.40282347e+38F;
 
 
 
@@ -93,6 +92,9 @@ private:
     }
 #endif
 
+    void process_points(d_vec<int> const &v_point_id, d_vec<float> const &v_point_data, d_vec<int> &v_point_nn,
+            d_vec<int> &v_tracker, int const track_height, magmaMPI const mpi) noexcept;
+
 public:
     d_vec<float> v_coord;
     d_vec<float> v_min_bounds, v_max_bounds;
@@ -138,31 +140,11 @@ public:
 
     void initialize_cells() noexcept;
 
-    void process_local_nc_tree() noexcept;
-
     void build_nc_tree() noexcept;
 
     void index_points(
             d_vec<float> const &v_data,
             d_vec<long long> &v_index) noexcept;
-
-    void process_points3(
-            d_vec<int> const &v_point_id,
-            d_vec<float> const &v_point_data,
-            d_vec<long long> &v_point_index,
-            d_vec<int> &v_point_cells_in_reach,
-            d_vec<int> &v_point_cell_reach_offset,
-            d_vec<int> &v_point_cell_reach_size,
-            magmaMPI mpi) noexcept;
-
-    void process_points2(
-            d_vec<int> const &v_point_id,
-            d_vec<float> const &v_point_data,
-            d_vec<long long> &v_point_index,
-            d_vec<int> &v_point_cells_in_reach,
-            d_vec<int> &v_point_cell_reach_offset,
-            d_vec<int> &v_point_cell_reach_size,
-            magmaMPI mpi) noexcept;
 
     void select_and_process(magmaMPI mpi) noexcept;
 

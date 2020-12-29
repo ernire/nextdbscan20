@@ -50,7 +50,7 @@ nextdbscan::result nextdbscan::start(int const m, float const e, int const n_thr
     });
 
     magma_util::measure_duration("Process Local NC Tree: ", mpi.rank == 0, [&]() -> void {
-        dp.process_local_nc_tree();
+        dp.select_and_process(mpi);
     });
 
     /*
