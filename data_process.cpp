@@ -48,9 +48,9 @@ void data_process::determine_data_bounds() noexcept {
 #ifdef CUDA_ON
         __device__
 #endif
-                (auto const i1, auto const i2) -> bool {
-                    return it_coord[i1 * _n_dim + d] < it_coord[i2 * _n_dim + d];
-                });
+    (auto const i1, auto const i2) -> bool {
+        return it_coord[i1 * _n_dim + d] < it_coord[i2 * _n_dim + d];
+    });
         v_min_bounds[d] = v_coord[(minmax.first * n_dim) + d];
         v_max_bounds[d] = v_coord[(minmax.second * n_dim) + d];
     }
@@ -66,116 +66,6 @@ void data_process::determine_data_bounds() noexcept {
        return (it_max[d1] - it_min[d1]) > (it_max[d2] - it_min[d2]);
     });
 }
-
-/*
-void data_process::collect_cells_in_reach(d_vec<long long> const &v_point_index, d_vec<int> &v_cell_reach,
-        d_vec<int> &v_point_reach_offset, d_vec<int> &v_point_reach_size) noexcept {
-    int const n_points = v_point_index.size();
-    d_vec<int> v_point_reach_full(9 * n_points, -1);
-
-    // Todo remove initialization
-    d_vec<int> v_value(v_point_index.size());
-    d_vec<int> v_lower_bound(v_point_index.size() * 3, -1);
-    auto const _dim_part_0 = v_dim_part_size[0];
-    auto const _dim_part_1 = v_dim_part_size[1];
-
-    exa::transform(v_point_index, 0, v_point_index.size(), v_value, 0, []
-#ifdef CUDA_ON
-        __device__
-#endif
-    (auto const &v) -> auto {
-        return v - 1;
-    });
-    exa::lower_bound(v_coord_cell_index, 0, v_coord_cell_index.size(), v_value, 0,
-            v_value.size(), v_lower_bound, 0, 2);
-    exa::transform(v_point_index, 0, v_point_index.size(), v_value, 0, [=]
-#ifdef CUDA_ON
-        __device__
-#endif
-    (auto const &v) -> auto {
-        return v - _dim_part_0 - 1;
-    });
-    exa::lower_bound(v_coord_cell_index, 0, v_coord_cell_index.size(), v_value, 0,
-            v_value.size(), v_lower_bound, 1, 2);
-    exa::transform(v_point_index, 0, v_point_index.size(), v_value, 0, [=]
-#ifdef CUDA_ON
-        __device__
-#endif
-    (auto const &v) -> auto {
-        return v + _dim_part_0 - 1;
-    });
-    exa::lower_bound(v_coord_cell_index, 0, v_coord_cell_index.size(), v_value, 0,
-            v_value.size(), v_lower_bound, 2, 2);
-
-    auto const it_point_reach_size = v_point_reach_size.begin();
-    auto const it_point_index = v_point_index.begin();
-    auto const it_full_reach = v_point_reach_full.begin();
-    auto const it_bounds = v_lower_bound.begin();
-    auto const it_coord_index = v_coord_cell_index.begin();
-    auto const _coord_cell_index_size = v_coord_cell_index.size();
-    exa::for_each(0, v_point_index.size(), [=]
-#ifdef CUDA_ON
-        __device__
-#endif
-    (auto const &i) -> void {
-        if (it_point_index[i] < 0) {
-            it_point_reach_size[i] = 0;
-            return;
-        }
-        auto it_begin = it_full_reach + (i * 9);
-        auto it_out = it_begin;
-        int val = *(it_bounds + (i * 3));
-        if (val < _coord_cell_index_size && *(it_coord_index + val) == *(it_point_index + i) - 1) {
-            *(it_out++) = val;
-            ++val;
-        }
-        if (val < _coord_cell_index_size && *(it_coord_index + val) == *(it_point_index + i)) {
-            *(it_out++) = val;
-            ++val;
-        }
-        if (val < _coord_cell_index_size && *(it_coord_index + val) == *(it_point_index + i) + 1) {
-            *(it_out++) = val;
-            ++val;
-        }
-        val = *(it_bounds + (i * 3) + 1);
-        if (val < _coord_cell_index_size && *(it_coord_index + val) == *(it_point_index + i) - _dim_part_0 - 1) {
-            *(it_out++) = val;
-            ++val;
-        }
-        if (val < _coord_cell_index_size && *(it_coord_index + val) == *(it_point_index + i) - _dim_part_0) {
-            *(it_out++) = val;
-            ++val;
-        }
-        if (val < _coord_cell_index_size && *(it_coord_index + val) == *(it_point_index + i) - _dim_part_0 + 1) {
-            *(it_out++) = val;
-            ++val;
-        }
-        val = *(it_bounds + (i * 3) + 2);
-        if (val < _coord_cell_index_size && *(it_coord_index + val) == *(it_point_index + i) + _dim_part_0 - 1) {
-            *(it_out++) = val;
-            ++val;
-        }
-        if (val < _coord_cell_index_size && *(it_coord_index + val) == *(it_point_index + i) + _dim_part_0) {
-            *(it_out++) = val;
-            ++val;
-        }
-        if (val < _coord_cell_index_size && *(it_coord_index + val) == *(it_point_index + i) + _dim_part_0 + 1) {
-            *(it_out++) = val;
-        }
-        *(it_point_reach_size + i) = it_out - it_begin;
-    });
-
-    exa::exclusive_scan(v_point_reach_size, 0, v_point_reach_size.size(), v_point_reach_offset, 0, 0);
-    v_cell_reach.resize(v_point_reach_full.size());
-    exa::copy_if(v_point_reach_full, 0, v_point_reach_full.size(), v_cell_reach, 0, []
-#ifdef CUDA_ON
-    __device__
-#endif
-    (auto const &val) -> bool {
-        return val >= 0;
-    });
-}
- */
 
 void data_process::get_result_meta(long long &processed, int &cores, int &noise, int &clusters, int &n, magmaMPI mpi) noexcept {
     n = n_coord;
@@ -201,7 +91,7 @@ void data_process::get_result_meta(long long &processed, int &cores, int &noise,
             __device__
 #endif
     (int const &v) -> bool {
-        return v != -2; // -2 is NOT PROCESSED
+        return v != NOT_PROCESSED;
     });
 
 #ifdef MPI_ON
@@ -490,54 +380,6 @@ void data_process::build_nc_tree() noexcept {
         std::cout << "cells #: " << v_nc_lvl_size[l] << std::endl;
     }
 
-    /*
-#ifdef DEBUG_ON
-    std::cout << "*****" << std::endl;
-    std::cout << "COVERAGE CHECK" << std::endl;
-    std::stack<int> stack;
-    magma_util::print_v("v_nc_lvl_offset: ", &v_nc_lvl_offset[0], v_nc_lvl_offset.size());
-    d_vec<int> v_test(n_coord);
-    for (int lvl = 0; lvl < nc_height; ++lvl) {
-        exa::fill(v_test, 0, v_test.size(), 0);
-        std::cout << "process lvl: " << lvl << " with size: " << v_nc_lvl_size[lvl] << std::endl;
-
-        for (int i = 0; i < v_nc_lvl_size[lvl]; ++i) {
-            stack.push(lvl);
-            stack.push(i);
-        }
-        while (!stack.empty()) {
-            int c = stack.top();
-            stack.pop();
-            int l = stack.top();
-            stack.pop();
-            for (int j = 0; j < v_coord_cell_size[v_nc_lvl_offset[l] + c]; ++j) {
-                if (l == 0) {
-                    ++v_test[v_coord_cell_index[v_coord_cell_offset[c] + j]];
-                } else {
-                    stack.push(l-1);
-                    stack.push(v_coord_cell_index[n_coord + v_nc_lvl_offset[l-1] + v_coord_cell_offset[v_nc_lvl_offset[l] + c] + j]);
-                }
-            }
-        }
-
-        bool is_fail = false;
-        for (auto const &v : v_test) {
-            if (v != 1) {
-                is_fail = true;
-                break;
-            }
-        }
-        if (is_fail) {
-            std::cout << "TEST FAILED (!!!!) at level " << lvl << std::endl;
-            exit(-1);
-        } else {
-            std::cout << "PASSED TEST at level " << lvl << std::endl;
-        }
-    }
-    std::cout << "*****" << std::endl;
-#endif
-     */
-
     float const _min_float = -std::numeric_limits<float>::max();
     float const _max_float = std::numeric_limits<float>::max();
 
@@ -602,35 +444,6 @@ void data_process::build_nc_tree() noexcept {
     }
 }
 
-/*
-
-                 d_vec<int> v_id_chunk(n_sample_size, -1);
-    d_vec<float> v_data_chunk(n_sample_size * n_dim);
-    int node_transmit_size = magma_util::get_block_size(mpi.rank, n_sample_size, mpi.n_nodes);
-    int node_transmit_offset = magma_util::get_block_offset(mpi.rank, n_sample_size, mpi.n_nodes);
-
-    int n_iter = 0;
-//    while (n_iter < n_iter * node_transmit_size < n_coord / 2) {
-    while (n_iter * mpi.n_nodes < 32) {
-        if (mpi.rank == 0)
-            std::cout << "n_iter: " << n_iter << std::endl;
-
-        exa::fill(v_id_chunk, 0, v_id_chunk.size(), -1);
-        exa::fill(v_data_chunk, 0, v_data_chunk.size(), static_cast<float>(-1));
-        std::copy(std::next(v_point_id.begin(), n_iter * node_transmit_size),
-                std::next(v_point_id.begin(), (n_iter+1) * node_transmit_size),
-                std::next(v_id_chunk.begin(), node_transmit_offset));
-        std::copy(std::next(v_coord.begin(), n_iter * node_transmit_size * n_dim),
-                std::next(v_coord.begin(), (n_iter + 1) * node_transmit_size * n_dim),
-                std::next(v_data_chunk.begin(), node_transmit_offset * n_dim));
-#ifdef MPI_ON
-        mpi.allGather(v_data_chunk);
-#endif
-        std::cout << "CHECKPOINT!" << std::endl;
-        process_points(v_id_chunk, v_data_chunk, mpi);
-        ++n_iter;
- */
-
 void data_process::select_and_process(magmaMPI mpi) noexcept {
     int n_sample_size = 50000;
     d_vec<int> v_id_chunk(n_sample_size, -1);
@@ -652,11 +465,12 @@ void data_process::select_and_process(magmaMPI mpi) noexcept {
     int n_iter = 0;
 
     while (transmit_cnt < n_coord) {
+#ifdef DEBUG_ON
         if (mpi.rank == 0)
-            std::cout << "n_iter: " << n_iter << " : " << transmit_cnt << std::endl;
+            std::cout << "transmit iter: " << n_iter << ", elems sent:" << transmit_cnt << std::endl;
+#endif
         exa::fill(v_id_chunk, 0, v_id_chunk.size(), -1);
         exa::fill(v_data_chunk, 0, v_data_chunk.size(), std::numeric_limits<float>::max());
-        exa::fill(v_tracker, 0, v_tracker.size(), 0);
         exa::fill(v_point_nn, 0, v_point_nn.size(), 0);
         if (transmit_cnt + node_transmit_size <= n_coord) {
             exa::copy(v_point_id, transmit_cnt, transmit_cnt + node_transmit_size,
@@ -691,6 +505,7 @@ void data_process::process_points(d_vec<int> const &v_point_id, d_vec<float> con
     auto const it_nc_lvl_size = v_nc_lvl_size.begin();
     auto const it_nc_lvl_offset = v_nc_lvl_offset.begin();
     auto const it_coord_cell_index = v_coord_cell_index.begin();
+    auto const it_coord_status = v_coord_status.begin();
     auto const it_coord_cell_offset = v_coord_cell_offset.begin();
     auto const it_coord = v_coord.begin();
     auto const it_cell_AABB = v_cell_AABB.begin();
@@ -700,6 +515,7 @@ void data_process::process_points(d_vec<int> const &v_point_id, d_vec<float> con
     auto const _e2 = e2;
 
     auto const it_tracker = v_tracker.begin();
+    float _max_float = std::numeric_limits<float>::max();
 
     exa::for_each(0, v_point_id.size(), [=]
 #ifdef CUDA_ON
@@ -708,7 +524,7 @@ void data_process::process_points(d_vec<int> const &v_point_id, d_vec<float> con
     (auto const &i) -> void {
         int hits = 0;
         auto const p = &it_point_data[i * _n_dim];
-        if (p[0] == std::numeric_limits<float>::max()) {
+        if (p[0] == _max_float) {
             return;
         }
         auto const stack = &it_tracker[i * track_height * 2];
@@ -770,7 +586,7 @@ void data_process::process_points(d_vec<int> const &v_point_id, d_vec<float> con
 #endif
     exa::for_each(0, v_point_id.size(), [=]
 #ifdef CUDA_ON
-            __device__
+        __device__
 #endif
     (auto const &i) -> void {
         if (it_point_id[i] != -1 && it_point_nn[i] >= _m) {
@@ -794,6 +610,7 @@ void data_process::process_points(d_vec<int> const &v_point_id, d_vec<float> con
         return false;
     });
 
+
     d_vec<int> v_core_cluster_index(v_point_core_id.size(), INT32_MAX);
     auto const it_core_cluster_index = v_core_cluster_index.begin();
     auto const it_coord_cluster_index = v_coord_cluster_index.begin();
@@ -801,6 +618,7 @@ void data_process::process_points(d_vec<int> const &v_point_id, d_vec<float> con
     d_vec<int> v_point_new_cluster_offset(v_point_core_id.size(), 0);
     auto const it_point_new_cluster_mark = v_point_new_cluster_mark.begin();
 
+    exa::fill(v_tracker, 0, v_tracker.size(), 0);
     exa::for_each(0, v_point_core_id.size(), [=]
 #ifdef CUDA_ON
         __device__
@@ -859,28 +677,18 @@ void data_process::process_points(d_vec<int> const &v_point_id, d_vec<float> con
         }
     });
 
-    exa::for_each(0, v_core_cluster_index.size(), [=]
-#ifdef CUDA_ON
-    __device__
-#endif
-    (auto const &k) -> void {
-        while (it_cluster_label[it_core_cluster_index[k]] != it_core_cluster_index[k]) {
-            it_core_cluster_index[k] = it_cluster_label[it_core_cluster_index[k]];
-        }
-    });
-
-    auto const it_coord_status = v_coord_status.begin();
     int iter_cnt = 0;
     d_vec<int> v_running(1);
     auto const it_running = v_running.begin();
     do {
         // set lowest
-        ++iter_cnt;
         v_running[0] = 0;
-        std::cout << "iter: " << iter_cnt << std::endl;
+#ifdef DEBUG_ON
+        std::cout << "iter: " << ++iter_cnt << std::endl;
+#endif
         exa::for_each(0, v_point_core_id.size(), [=]
 #ifdef CUDA_ON
-                __device__
+        __device__
 #endif
         (auto const &ii) -> void {
             auto const i = it_point_core_id[ii];
@@ -920,7 +728,6 @@ void data_process::process_points(d_vec<int> const &v_point_id, d_vec<float> con
                                         && it_coord_status[id2] != PROCESSED) {
                                             continue;
                                     }
-//                                    }
                                     auto const p2 = &it_coord[id2 * _n_dim];
                                     float length = 0;
                                     for (int d = 0; d < _n_dim; ++d) {
@@ -984,7 +791,6 @@ void data_process::process_points(d_vec<int> const &v_point_id, d_vec<float> con
 
     } while (v_running[0] == 1);
 
-
     exa::for_each(0, v_point_core_id.size(), [=]
 #ifdef CUDA_ON
             __device__
@@ -994,15 +800,6 @@ void data_process::process_points(d_vec<int> const &v_point_id, d_vec<float> con
         if (it_point_id[i] >= 0) {
             it_coord_cluster_index[it_point_id[i]] = it_core_cluster_index[k];
         }
-        /*
-        if (it_point_new_cluster_mark[k] == 1) {
-            // mark the new cluster indexes
-            it_core_cluster_index[k] = it_point_new_cluster_offset[k];
-            if (it_point_id[i] >= 0) {
-                it_coord_cluster_index[it_point_id[i]] = it_core_cluster_index[k];
-            }
-        }
-         */
     });
 
     exa::for_each(0, v_point_id.size(), [=]
@@ -1015,194 +812,7 @@ void data_process::process_points(d_vec<int> const &v_point_id, d_vec<float> con
         }
     });
 
-
-    /*
-     * // Label cores
-    d_vec<int> v_point_min_label(v_point_core_id.size());
-    d_vec<int> v_point_max_label(v_point_core_id.size());
-    auto const it_point_min_label = v_point_min_label.begin();
-    auto const it_point_max_label = v_point_max_label.begin();
-    exa::for_each(0, v_point_core_id.size(), [=]
-#ifdef CUDA_ON
-        __device__
-#endif
-    (auto const &k) -> void {
-        auto i = it_point_core_id[k];
-        if (it_point_new_cluster_mark[k] == 1) {
-            // mark the new cluster indexes
-            it_core_cluster_index[k] = it_point_new_cluster_offset[k];
-            if (it_point_id[i] >= 0) {
-                it_coord_cluster_index[it_point_id[i]] = it_core_cluster_index[k];
-            }
-        }
-    });
-    int iter_cnt = 0;
-    d_vec<int> v_running(1);
-    auto const it_running = v_running.begin();
-    d_vec<int> v_running2(1);
-    auto const it_running2 = v_running2.begin();
-    do {
-        ++iter_cnt;
-        v_running[0] = 0;
-        exa::fill(v_tracker, 0, v_tracker.size(), 0);
-        exa::for_each(0, v_point_core_id.size(), [=]
-#ifdef CUDA_ON
-        __device__
-#endif
-        (auto const &ii) -> void {
-            auto const i = it_point_core_id[ii];
-            int min_label = INT32_MAX;
-            int max_label = INT32_MIN;
-            auto const p = &it_point_data[i * _n_dim];
-            auto const stack = &it_tracker[i * track_height * 2];
-            for (int c1 = 0; c1 < it_nc_lvl_size[track_height - 1]; ++c1) {
-                int lvl = track_height - 1;
-                stack[lvl * 2] = c1;
-                stack[lvl * 2 + 1] = 0;
-                do {
-                    int c = stack[lvl * 2];
-                    int j = stack[lvl * 2 + 1];
-                    bool are_connected = true;
-                    if (j == 0) {
-                        auto const min2 = &it_cell_AABB[((it_nc_lvl_offset[lvl] + c) * _n_dim * 2)];
-                        auto const max2 = &it_cell_AABB[((it_nc_lvl_offset[lvl] + c) * _n_dim * 2) + _n_dim];
-                        for (int d = 0; d < _n_dim; ++d) {
-                            if (p[d] < min2[d] || p[d] > max2[d]) {
-                                are_connected = false;
-                                break;
-                            }
-                        }
-                    }
-                    if (are_connected) {
-                        if (j < it_coord_cell_size[it_nc_lvl_offset[lvl] + c]) {
-                            stack[lvl * 2 + 1] = j + 1;
-                            if (lvl == 0) {
-                                for (int k = 0; k < it_coord_cell_size[c]; ++k) {
-                                    auto const id2 = it_coord_cell_index[it_coord_cell_offset[c] + k];
-                                    if (it_coord_nn[id2] < _m)
-                                        continue;
-                                    assert(it_cluster_label[it_core_cluster_index[ii]] != NO_CLUSTER);
-                                    if (min_label < it_cluster_label[it_coord_cluster_index[id2]] &&
-                                            max_label > it_cluster_label[it_coord_cluster_index[id2]])
-                                        continue;
-                                    auto const p2 = &it_coord[id2 * _n_dim];
-                                    float length = 0;
-                                    for (int d = 0; d < _n_dim; ++d) {
-                                        length += (p[d] - p2[d]) * (p[d] - p2[d]);
-                                        if (length > _e2) {
-                                            break;
-                                        }
-                                    }
-                                    if (length <= _e2) {
-                                        if (min_label > it_cluster_label[it_coord_cluster_index[id2]]) {
-                                            min_label = it_cluster_label[it_coord_cluster_index[id2]];
-                                        }
-                                        if (max_label < it_cluster_label[it_coord_cluster_index[id2]]) {
-                                            max_label = it_cluster_label[it_coord_cluster_index[id2]];
-                                        }
-                                    }
-                                }
-                                ++lvl;
-                            } else {
-                                --lvl;
-                                stack[lvl * 2] = it_coord_cell_index[
-                                        _n_coord + it_nc_lvl_offset[lvl] + it_coord_cell_offset[it_nc_lvl_offset[lvl+1] + c] + j
-                                ];
-                                stack[lvl * 2 + 1] = 0;
-                            }
-                        } else {
-                            ++lvl;
-                        }
-                    } else {
-                        ++lvl;
-                    }
-                } while (lvl < track_height);
-            }
-            it_point_min_label[ii] = min_label;
-            it_point_max_label[ii] = max_label;
-            assert(min_label != INT32_MAX);
-            assert(max_label != INT32_MIN);
-            assert(min_label >= 0 && min_label < v_cluster_label.size());
-            assert(max_label >= 0 && max_label < v_cluster_label.size());
-            assert(v_cluster_label[min_label] == min_label);
-            assert(v_cluster_label[max_label] == max_label);
-            if (min_label != max_label)
-                it_running[0] = 1;
-//            if (min_label == max_label)
-//                std::cout << "YE" << std::endl;
-        });
-#ifdef MPI_ON
-        mpi.allReduce(v_point_min_label, magmaMPI::min);
-        mpi.allReduce(v_point_max_label, magmaMPI::max);
-#endif
-        exa::for_each(0, v_point_core_id.size(), [=]
-#ifdef CUDA_ON
-                __device__
-#endif
-        (auto const &k) -> void {
-            it_core_cluster_index[k] = it_point_min_label[k];
-        });
-
-        int inner_iter = 0;
-        int cnt = 0;
-        do {
-            it_running2[0] = 0;
-#ifdef DEBUG_ON
-            std::cout << "outer cnt: " << iter_cnt << " inner cnt: " << ++inner_iter << std::endl;
-#endif
-            exa::for_each(0, v_point_min_label.size(), [=]
-#ifdef CUDA_ON
-            __device__
-#endif
-            (auto const &k) {
-                if (it_cluster_label[it_point_min_label[k]] < it_cluster_label[it_point_max_label[k]]) {
-                    exa::atomic_min(&it_cluster_label[it_point_max_label[k]],
-                            it_cluster_label[it_point_min_label[k]]);
-//                    it_cluster_label[it_point_max_label[k]] = it_cluster_label[it_point_min_label[k]];
-//                    it_point_max_label[k] = it_cluster_label[it_point_max_label[k]];
-//                    if (inner_iter > 1) {
-//                        std::cout << it_cluster_label[it_point_min_label[k]] << " < " << it_cluster_label[it_point_max_label[k]] << std::endl;
-//                    }
-//                    it_running2[0] = 1;
-                    ++it_running2[0];
-                } else if (it_cluster_label[it_point_min_label[k]] > it_cluster_label[it_point_max_label[k]]) {
-//                    std::cout << "?" << std::endl;
-                    exa::atomic_min(&it_cluster_label[it_point_min_label[k]],
-                            it_cluster_label[it_point_max_label[k]]);
-//                    it_cluster_label[it_point_min_label[k]] = it_cluster_label[it_point_max_label[k]];
-//                    it_point_min_label[k] = it_cluster_label[it_point_min_label[k]];
-//                    it_running2[0] = 1;
-                    ++it_running2[0];
-                }
-
-            });
-            std::cout << "cnt: " << it_running2[0] << std::endl;
-        } while (v_running2[0] > 0 && inner_iter < 5);
-        // flatten
-        exa::for_each(0, v_coord_id.size(), [=]
-#ifdef CUDA_ON
-        __device__
-#endif
-        (auto const &i) -> void {
-            if (it_coord_cluster_index[i] == NO_CLUSTER)
-                return;
-            while (it_cluster_label[it_coord_cluster_index[i]] != it_coord_cluster_index[i]) {
-                it_coord_cluster_index[i] = it_cluster_label[it_coord_cluster_index[i]];
-            }
-        });
-        exa::for_each(0, v_point_cluster_index.size(), [=]
-#ifdef CUDA_ON
-        __device__
-#endif
-        (auto const &k) -> void {
-            while (it_cluster_label[it_core_cluster_index[k]] != it_core_cluster_index[k]) {
-                it_core_cluster_index[k] = it_cluster_label[it_core_cluster_index[k]];
-            }
-        });
-    } while (v_running[0] > 0);
-    */
     // Label non-cores
-    exa::fill(v_tracker, 0, v_tracker.size(), 0);
     exa::for_each(0, v_point_core_id.size(), [=]
 #ifdef CUDA_ON
     __device__

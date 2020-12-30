@@ -21,14 +21,8 @@ static const int MARKED = 0;
 #ifdef CUDA_ON
 __device__
 #endif
-static const int PROCESSED = 1;
+static const int PROCESSED = -100;
 static const float FLOAT_MAX = 3.40282347e+38F;
-
-#ifdef CUDA_ON
-__device__
-#endif
-
-
 
 #ifdef CUDA_ON
 #include <thrust/host_vector.h>
@@ -92,9 +86,6 @@ private:
     }
 #endif
 
-    void process_points(d_vec<int> const &v_point_id, d_vec<float> const &v_point_data, d_vec<int> &v_point_nn,
-            d_vec<int> &v_tracker, int const track_height, magmaMPI const mpi) noexcept;
-
 public:
     d_vec<float> v_coord;
     d_vec<float> v_min_bounds, v_max_bounds;
@@ -130,11 +121,8 @@ public:
         : m(m), n_dim(n_dim), n_coord(v_coord.size()/n_dim), e(e), e2(e*e), v_coord(std::move(v_coord)) {}
 #endif
 
-    void collect_cells_in_reach(
-            d_vec<long long> const &v_point_index,
-            d_vec<int> &v_cell_reach,
-            d_vec<int> &v_point_reach_offset,
-            d_vec<int> &v_point_reach_size) noexcept;
+    void process_points(d_vec<int> const &v_point_id, d_vec<float> const &v_point_data, d_vec<int> &v_point_nn,
+            d_vec<int> &v_tracker, int track_height, magmaMPI mpi) noexcept;
 
     void determine_data_bounds() noexcept;
 

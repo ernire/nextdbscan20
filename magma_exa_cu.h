@@ -213,7 +213,7 @@ namespace exa {
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
     __device__
-    void atomic_min(thrust::device_ptr<T> &v, thrust::device_reference<T> val) {
+    void atomic_min(thrust::device_ptr<T> v, thrust::device_reference<T> val) {
         T * ptr = thrust::raw_pointer_cast(v);
         atomicMin(ptr, val);
     }
