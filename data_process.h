@@ -22,7 +22,7 @@ static const int MARKED = 0;
 __device__
 #endif
 static const int PROCESSED = -100;
-static const float FLOAT_MAX = 3.40282347e+38F;
+//static const float FLOAT_MAX = 3.40282347e+38F;
 
 #ifdef CUDA_ON
 #include <thrust/host_vector.h>

@@ -33,9 +33,6 @@ void print_cuda_memory_usage() {
 #endif
 
 void data_process::determine_data_bounds() noexcept {
-
-    std::cout << "m: " << m << " e: " << e << std::endl;
-
     v_min_bounds.resize(n_dim);
     v_max_bounds.resize(n_dim);
     v_coord_id.resize(n_coord);
@@ -83,7 +80,7 @@ void data_process::get_result_meta(long long &processed, int &cores, int &noise,
     __device__
 #endif
     (int const &v) -> bool {
-        return v == INT32_MAX;
+        return v == NO_CLUSTER;
     });
 
     processed = exa::count_if(v_coord_status, 0, v_coord_status.size(), [=]
@@ -98,12 +95,39 @@ void data_process::get_result_meta(long long &processed, int &cores, int &noise,
     d_vec<int> v_data(2);
     v_data[0] = cores;
     v_data[1] = noise;
-    mpi.allReduce(v_data, magmaMPI::sum);
+    if (mpi.n_nodes > 1)
+        mpi.allReduce(v_data, magmaMPI::sum);
     cores = v_data[0];
     noise = v_data[1];
 #endif
 
+    std::cout << "cores: " << cores << std::endl;
+
+    auto const it_cluster_label = v_cluster_label.begin();
+    d_vec<int> v_cluster_iota(v_cluster_label.size());
+    exa::iota(v_cluster_iota, 0, v_cluster_iota.size(), 0);
+    clusters = exa::count_if(v_cluster_iota, 0, v_cluster_iota.size(), [=]
+#ifdef CUDA_ON
+        __device__
+#endif
+    (int const &i) -> bool {
+        return it_cluster_label[i] == i;
+    });
+
+
+
+//    auto const it_cluster_label = v_cluster_label.begin();
+//    exa::for_each(0, v_cluster_label.size(), [=]
+//#ifdef CUDA_ON
+//    __device__
+//#endif
+//    (auto const &i) {
+//
+//    });
+
+
 //    v_cluster_label
+/*
     d_vec<int> v_coord_cluster_cpy = v_coord_cluster_index;
     exa::sort(v_coord_cluster_cpy, 0, v_coord_cluster_cpy.size(), []
 #ifdef CUDA_ON
@@ -124,6 +148,7 @@ void data_process::get_result_meta(long long &processed, int &cores, int &noise,
             return true;
        return false;
     });
+*/
 
     /*
     std::unordered_map<int, int> v_cluster_map;
@@ -148,8 +173,9 @@ void data_process::get_result_meta(long long &processed, int &cores, int &noise,
     std::cout << "Map size: " << v_cluster_map.size() << std::endl;
      */
 #ifdef MPI_ON
+    /*
     d_vec<int> v_unique(v_iota.size());
-    exa::unique(v_iota, v_unique, 0, v_iota.size(), 0, [&](auto const &i) -> bool {
+    exa::unique(v_iota, 0, v_iota.size(), v_unique, 0, [&](auto const &i) -> bool {
         if (v_coord_cluster_cpy[i] != v_coord_cluster_cpy[i-1])
             return true;
         return false;
@@ -183,6 +209,7 @@ void data_process::get_result_meta(long long &processed, int &cores, int &noise,
             return true;
         return false;
     });
+     */
 #endif
 }
 
@@ -266,7 +293,6 @@ void data_process::initialize_cells() noexcept {
 
 void data_process::build_nc_tree() noexcept {
     auto const _n_dim = n_dim;
-//    auto const _e_i = get_lowest_e(e, n_dim);//sqrtf(2);
     auto const _e_i = e / sqrtf(2);
     auto const _log2 = logf(2);
     auto const it_coord = v_coord.begin();
@@ -377,7 +403,10 @@ void data_process::build_nc_tree() noexcept {
         });
         v_coord_cell_size[v_coord_cell_size.size()-1] = n_lvl_size - v_coord_cell_offset[v_coord_cell_offset.size()-1];
         v_nc_lvl_size[l] = v_coord_cell_offset.size() - n_offset_size;
-        std::cout << "cells #: " << v_nc_lvl_size[l] << std::endl;
+
+#ifdef DEBUG_ON
+        std::cout << "lvl: " << l << " cells #: " << v_nc_lvl_size[l] << std::endl;
+#endif
     }
 
     float const _min_float = -std::numeric_limits<float>::max();
@@ -445,15 +474,15 @@ void data_process::build_nc_tree() noexcept {
 }
 
 void data_process::select_and_process(magmaMPI mpi) noexcept {
-    int n_sample_size = 50000;
+    int n_sample_size = 500000;
     d_vec<int> v_id_chunk(n_sample_size, -1);
     d_vec<float> v_data_chunk(n_sample_size * n_dim);
     int node_transmit_size = magma_util::get_block_size(mpi.rank, n_sample_size, mpi.n_nodes);
     int node_transmit_offset = magma_util::get_block_offset(mpi.rank, n_sample_size, mpi.n_nodes);
 #ifdef DEBUG_ON
-    std::cout << "transmit offset: " << node_transmit_offset << " size: " << node_transmit_size << std::endl;
+    std::cout << "transmit offset: " << node_transmit_offset << " size: " << node_transmit_size << " : " << n_coord << std::endl;
 #endif
-    d_vec<int> v_point_id(n_coord);
+    d_vec<int> v_point_id(v_coord_id);
     exa::iota(v_point_id, 0, v_point_id.size(), 0);
     v_coord_nn.resize(n_coord, 0);
     v_coord_status.resize(n_coord, NOT_PROCESSED);
@@ -464,7 +493,7 @@ void data_process::select_and_process(magmaMPI mpi) noexcept {
     std::size_t transmit_cnt = 0;
     int n_iter = 0;
 
-    while (transmit_cnt < n_coord) {
+    while (transmit_cnt < n_coord && n_iter < 1) {
 #ifdef DEBUG_ON
         if (mpi.rank == 0)
             std::cout << "transmit iter: " << n_iter << ", elems sent:" << transmit_cnt << std::endl;
@@ -488,7 +517,8 @@ void data_process::select_and_process(magmaMPI mpi) noexcept {
         }
         transmit_cnt += node_transmit_size;
 #ifdef MPI_ON
-        mpi.allGather(v_data_chunk);
+        if (mpi.n_nodes > 1)
+            mpi.allGather(v_data_chunk);
 #endif
         process_points(v_id_chunk, v_data_chunk, v_point_nn, v_tracker, track_height, mpi);
         ++n_iter;
@@ -496,7 +526,7 @@ void data_process::select_and_process(magmaMPI mpi) noexcept {
 }
 
 void data_process::process_points(d_vec<int> const &v_point_id, d_vec<float> const &v_point_data, d_vec<int> &v_point_nn,
-        d_vec<int> &v_tracker, int const track_height, magmaMPI const mpi) noexcept {
+        d_vec<int> &v_tracker, int const track_height, magmaMPI mpi) noexcept {
     auto const it_point_id = v_point_id.begin();
     auto const it_point_data = v_point_data.begin();
     auto const it_point_nn = v_point_nn.begin();
@@ -579,11 +609,15 @@ void data_process::process_points(d_vec<int> const &v_point_id, d_vec<float> con
                     ++lvl;
                 }
             } while (lvl < track_height);
+            it_point_nn[i] = hits;
         }
     });
+
 #ifdef MPI_ON
-    mpi.allReduce(v_point_nn, magmaMPI::sum);
+    if (mpi.n_nodes > 1)
+        mpi.allReduce(v_point_nn, magmaMPI::sum);
 #endif
+
     exa::for_each(0, v_point_id.size(), [=]
 #ifdef CUDA_ON
         __device__
@@ -610,8 +644,7 @@ void data_process::process_points(d_vec<int> const &v_point_id, d_vec<float> con
         return false;
     });
 
-
-    d_vec<int> v_core_cluster_index(v_point_core_id.size(), INT32_MAX);
+    d_vec<int> v_core_cluster_index(v_point_core_id.size(), NO_CLUSTER);
     auto const it_core_cluster_index = v_core_cluster_index.begin();
     auto const it_coord_cluster_index = v_coord_cluster_index.begin();
     d_vec<int> v_point_new_cluster_mark(v_point_core_id.size(), 0);
@@ -638,8 +671,10 @@ void data_process::process_points(d_vec<int> const &v_point_id, d_vec<float> con
     });
 
 #ifdef MPI_ON
-    mpi.allGather(v_point_new_cluster_mark);
+    if (mpi.n_nodes > 1)
+        mpi.allReduce(v_point_new_cluster_mark, magmaMPI::max);
 #endif
+
     // count the new labels
     auto new_cluster_cores = exa::count_if(v_point_new_cluster_mark, 0, v_point_new_cluster_mark.size(), []
 #ifdef CUDA_ON
@@ -651,6 +686,7 @@ void data_process::process_points(d_vec<int> const &v_point_id, d_vec<float> con
 #ifdef DEBUG_ON
     std::cout << "new cluster cores: " << new_cluster_cores << std::endl;
 #endif
+
     int cluster_index_begin = static_cast<int>(v_cluster_label.size());
     v_cluster_label.resize(cluster_index_begin + new_cluster_cores);
     auto const it_cluster_label = v_cluster_label.begin();
@@ -684,7 +720,7 @@ void data_process::process_points(d_vec<int> const &v_point_id, d_vec<float> con
         // set lowest
         v_running[0] = 0;
 #ifdef DEBUG_ON
-        std::cout << "iter: " << ++iter_cnt << std::endl;
+        std::cout << "iter: " << ++iter_cnt << " : " << mpi.rank << std::endl;
 #endif
         exa::for_each(0, v_point_core_id.size(), [=]
 #ifdef CUDA_ON
@@ -766,6 +802,12 @@ void data_process::process_points(d_vec<int> const &v_point_id, d_vec<float> con
                 } while (lvl < track_height);
             }
         });
+
+#ifdef MPI_ON
+        if (mpi.n_nodes > 1)
+            mpi.allReduce(v_cluster_label, magmaMPI::min);
+#endif
+
         // flatten
         exa::for_each(0, v_core_cluster_index.size(), [=]
 #ifdef CUDA_ON
@@ -789,6 +831,10 @@ void data_process::process_points(d_vec<int> const &v_point_id, d_vec<float> con
             }
         });
 
+#ifdef MPI_ON
+        mpi.allReduce(v_running, magmaMPI::max);
+#endif
+
     } while (v_running[0] == 1);
 
     exa::for_each(0, v_point_core_id.size(), [=]
@@ -801,6 +847,7 @@ void data_process::process_points(d_vec<int> const &v_point_id, d_vec<float> con
             it_coord_cluster_index[it_point_id[i]] = it_core_cluster_index[k];
         }
     });
+    std::cout << "CHECKPOINT 3" << std::endl;
 
     exa::for_each(0, v_point_id.size(), [=]
 #ifdef CUDA_ON
@@ -812,6 +859,7 @@ void data_process::process_points(d_vec<int> const &v_point_id, d_vec<float> con
         }
     });
 
+    std::cout << "CHECKPOINT 4" << std::endl;
     // Label non-cores
     exa::for_each(0, v_point_core_id.size(), [=]
 #ifdef CUDA_ON

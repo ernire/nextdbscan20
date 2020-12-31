@@ -62,9 +62,6 @@ int main(int argc, char** argv) {
 #endif
     auto mpi = magmaMPI::build();
     auto results = nextdbscan::start(m, e, n_thread, input_file, mpi);
-#ifdef MPI_ON
-    MPI_Finalize();
-#endif
 
     if (mpi.rank == 0) {
         std::cout << std::endl;
@@ -90,5 +87,8 @@ int main(int argc, char** argv) {
         }
          */
     }
+#ifdef MPI_ON
+    MPI_Finalize();
+#endif
     return 0;
 }

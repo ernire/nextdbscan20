@@ -17,12 +17,12 @@ nextdbscan::result nextdbscan::start(int const m, float const e, int const n_thr
     }
 
     h_vec<float> v_coord;
-    int n_coord = -1, n_dim = -1;
+    int n_total_coord = -1, n_dim = -1;
     magma_util::measure_duration("Read Input Data: ", mpi.rank == 0, [&]() -> void {
-        magma_input::read_input(in_file, v_coord, n_coord, n_dim, mpi.n_nodes, mpi.rank);
+        magma_input::read_input(in_file, v_coord, n_total_coord, n_dim, mpi.n_nodes, mpi.rank);
     });
     if (mpi.rank == 0) {
-        std::cout << "Read " << n_coord << " points with " << n_dim << " dimensions. " << std::endl;
+        std::cout << "Read " << n_total_coord << " points with " << n_dim << " dimensions. " << std::endl;
     }
     auto time_start = std::chrono::high_resolution_clock::now();
     data_process dp(v_coord, m, e, n_dim);
@@ -81,5 +81,7 @@ nextdbscan::result nextdbscan::start(int const m, float const e, int const n_thr
     magma_util::measure_duration("Collect Results: ", mpi.rank == 0, [&]() -> void {
         dp.get_result_meta(result.processed, result.core_count, result.noise, result.clusters, result.n, mpi);
     });
+    if (mpi.rank == 0)
+        std::cout << "collection done" << std::endl;
     return result;
 }
