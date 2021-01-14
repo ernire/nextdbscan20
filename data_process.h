@@ -47,6 +47,7 @@ class data_process {
 private:
     int const m, n_dim;
     std::size_t const n_coord;
+    std::size_t const n_total_coord;
     float const e, e2;
 
     static float get_lowest_e(float const e, long const n_dim) noexcept {
@@ -110,23 +111,22 @@ public:
     d_vec<int> v_nc_lvl_offset;
     d_vec<float> v_cell_AABB;
 #ifdef CUDA_ON
-    explicit data_process(h_vec<float> &v_coord, int const m, float const e, int const n_dim)
-        : m(m), n_dim(n_dim), n_coord(v_coord.size()/n_dim), e(e), e2(e*e), v_coord(v_coord) {}
+    explicit data_process(h_vec<float> &v_coord, int const m, float const e, int const n_dim, int const n_total_coord)
+        : m(m), n_dim(n_dim), n_coord(v_coord.size()/n_dim), e(e), e2(e*e), n_total_coord(n_total_coord), v_coord(v_coord) {}
 #else
     explicit data_process(
             h_vec<float> &v_coord,
             int const m,
             float const e,
-            int const n_dim)
-        : m(m), n_dim(n_dim), n_coord(v_coord.size()/n_dim), e(e), e2(e*e), v_coord(std::move(v_coord)) {}
+            int const n_dim,
+            int const n_total_coord)
+        : m(m), n_dim(n_dim), n_coord(v_coord.size()/n_dim), e(e), e2(e*e), n_total_coord(n_total_coord), v_coord(std::move(v_coord)) {}
 #endif
 
     void process_points(d_vec<int> const &v_point_id, d_vec<float> const &v_point_data, d_vec<int> &v_point_nn,
             d_vec<int> &v_tracker, int track_height, magmaMPI mpi) noexcept;
 
     void determine_data_bounds() noexcept;
-
-    void initialize_cells() noexcept;
 
     void build_nc_tree() noexcept;
 

@@ -47,7 +47,6 @@ int main(int argc, char** argv) {
     e = std::strtof(argv[4], &p);
     n_thread = std::stoi(argv[6]);
     input_file = argv[7];
-    std::cout << "input file: " << input_file << " : " << m << " : " << e << " n_threads: " << n_thread << std::endl;
 
     if (errors || m == -1 || e == -1) {
         std::cout << "Input Error: Please specify the m and e parameters" << std::endl << std::endl;
@@ -61,6 +60,8 @@ int main(int argc, char** argv) {
     omp_set_num_threads(n_thread);
 #endif
     auto mpi = magmaMPI::build();
+    if (mpi.rank == 0)
+        std::cout << "input file: " << input_file << " : " << m << " : " << e << " n_threads: " << n_thread << std::endl;
     auto results = nextdbscan::start(m, e, n_thread, input_file, mpi);
 
     if (mpi.rank == 0) {

@@ -241,6 +241,10 @@ namespace exa {
 #ifdef DEBUG_ON
         assert(begin <= end);
 #endif
+        if (v.size() < 256) {
+            auto pair = std::minmax_element(std::next(v.begin(), begin), std::next(v.begin(), end), functor);
+            return std::make_pair(*pair.first, *pair.second);
+        }
         d_vec<T> v_t_min_max;
         #pragma omp parallel
         {
