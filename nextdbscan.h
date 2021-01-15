@@ -6,15 +6,27 @@
 #define NEXTDBSCAN20_NEXTDBSCAN_H
 
 #include <string>
-#include "data_process.h"
+//#include "data_process.h"
+#ifdef CUDA_ON
+#include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
+template <typename T>
+using h_vec = thrust::host_vector<T>;
+template <typename T>
+using d_vec = thrust::device_vector<T>;
+#else
+#include <vector>
+template <typename T>
+using s_vec = std::vector<T>;
+template <typename T>
+using h_vec = std::vector<T>;
+template <typename T>
+using d_vec = std::vector<T>;
+#endif
 
 #include "magma_mpi.h"
 
 namespace nextdbscan {
-
-    static const uint8_t NC = 0;
-    static const uint8_t AC = 1;
-    static const uint8_t SC = 2;
 
     struct result {
         int clusters;

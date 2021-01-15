@@ -148,7 +148,6 @@ void data_process::build_nc_tree() noexcept {
     // calculate height
     d_vec<int> v_dim_height(n_dim);
     h_vec<int> v_dim_height_host(n_dim);
-    auto const it_dim_height = v_dim_height.begin();
     auto const it_min_bounds = v_min_bounds;
     auto const it_max_bounds = v_max_bounds;
     for (int d = 0; d < n_dim; ++d) {
@@ -323,13 +322,14 @@ void data_process::select_and_process(magmaMPI mpi) noexcept {
     // 128 MB sample size
 //    int n_sample_size = 128000000 / (4 * n_dim);
     // process up to a million each iteration points
-    int n_sample_size = 1000000;
+    int n_sample_size = 10000000;
     d_vec<int> v_id_chunk(n_sample_size, -1);
     d_vec<float> v_data_chunk(n_sample_size * n_dim);
     int node_transmit_size = magma_util::get_block_size(mpi.rank, n_sample_size, mpi.n_nodes);
     int node_transmit_offset = magma_util::get_block_offset(mpi.rank, n_sample_size, mpi.n_nodes);
+//    std::cout << "node: " << mpi.rank << " with n_coord: " << n_coord << std::endl;
 #ifdef DEBUG_ON
-    std::cout << "transmit offset: " << node_transmit_offset << " size: " << node_transmit_size << " : " << n_coord << std::endl;
+    std::cout << "node: " << mpi.rank << " transmit offset: " << node_transmit_offset << " size: " << node_transmit_size << " : " << n_coord << std::endl;
 #endif
     d_vec<int> v_point_id(v_coord_id);
     exa::iota(v_point_id, 0, v_point_id.size(), 0);
@@ -362,8 +362,8 @@ void data_process::select_and_process(magmaMPI mpi) noexcept {
         }
         transmit_cnt += node_transmit_size;
 #ifdef DEBUG_ON
-        if (mpi.rank == 0)
-            std::cout << "transmit iter: " << n_iter << ", elems sent:" << transmit_cnt << std::endl;
+//        if (mpi.rank == 0)
+//            std::cout << "transmit iter: " << n_iter << ", elems sent:" << transmit_cnt << std::endl;
 #endif
 #ifdef MPI_ON
         if (mpi.n_nodes > 1)
@@ -567,9 +567,14 @@ void data_process::process_points(d_vec<int> const &v_point_id, d_vec<float> con
             mpi.allReduce(v_core_cluster_index, magmaMPI::min);
 #endif
 
+    int iter_cnt = 0;
     d_vec<int> v_running(1);
     auto const it_running = v_running.begin();
     do {
+#ifdef DEBUG_ON
+        if (mpi.rank == 0)
+            std::cout << "iter: " << ++iter_cnt << std::endl;
+#endif
         // set lowest
         v_running[0] = 0;
         exa::for_each(0, v_point_core_id.size(), [=]

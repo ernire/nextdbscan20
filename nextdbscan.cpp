@@ -5,6 +5,7 @@
 #include <iostream>
 #include <chrono>
 #include "nextdbscan.h"
+#include "data_process.h"
 #include "magma_input.h"
 #include "magma_util.h"
 
@@ -31,20 +32,20 @@ nextdbscan::result nextdbscan::start(int const m, float const e, int const n_thr
 
     magma_util::measure_duration("Determine Data Boundaries: ", mpi.rank == 0, [&]() -> void {
         dp.determine_data_bounds();
-        if (mpi.n_nodes > 1) {
-            mpi.allReduce(dp.v_min_bounds, magmaMPI::min);
-            mpi.allReduce(dp.v_max_bounds, magmaMPI::max);
-        }
+//        if (mpi.n_nodes > 1) {
+//            mpi.allReduce(dp.v_min_bounds, magmaMPI::min);
+//            mpi.allReduce(dp.v_max_bounds, magmaMPI::max);
+//        }
     });
 #ifdef DEBUG_ON
     h_vec<float> v_min_bounds = dp.v_min_bounds;
     h_vec<float> v_max_bounds = dp.v_max_bounds;
     h_vec<int> v_dim_order = dp.v_dim_order;
-    if (mpi.rank == 0) {
-        magma_util::print_v("min bounds: ", &v_min_bounds[0], v_min_bounds.size());
-        magma_util::print_v("max bounds: ", &v_max_bounds[0], v_max_bounds.size());
-        magma_util::print_v("dim order: ", &v_dim_order[0], v_dim_order.size());
-    }
+//    if (mpi.rank == 0) {
+//        magma_util::print_v("min bounds: ", &v_min_bounds[0], v_min_bounds.size());
+//        magma_util::print_v("max bounds: ", &v_max_bounds[0], v_max_bounds.size());
+//        magma_util::print_v("dim order: ", &v_dim_order[0], v_dim_order.size());
+//    }
 #endif
 
     magma_util::measure_duration("Build NC Tree: ", mpi.rank == 0, [&]() -> void {
