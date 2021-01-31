@@ -392,6 +392,11 @@ namespace exa {
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    void atomic_max(T* address, T val) {
+        _atomic_op(address, val, std::greater<>());
+    }
+
+    template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
     void atomic_add(T* address, T const val) {
         #pragma omp atomic
         *address += val;

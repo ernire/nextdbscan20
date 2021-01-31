@@ -64,9 +64,9 @@ namespace magma_input {
 
         // TODO H5F_ACC_RDONLY ?
         hid_t file = H5Fopen(in_file.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
-        hid_t dset = H5Dopen1(file, "DBSCAN");
+//        hid_t dset = H5Dopen1(file, "DBSCAN");
 //        hid_t dset = H5Dopen1(file, i_node < (n_nodes / 2)? "xyz_1" : "xyz_2");
-//        hid_t dset = H5Dopen1(file, "xyz");
+        hid_t dset = H5Dopen1(file, "xyz");
         hid_t fileSpace= H5Dget_space(dset);
 
         // Read dataset size and calculate chunk size

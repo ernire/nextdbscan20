@@ -22,8 +22,8 @@ cu-mpi:
 	rm -f $(OUT)-cu.o
 	rm -f $(OUT)-cu-mpi
 	rm -f ble-cu.o
-	nvcc -O3 -std=c++14 -x cu -Xcompiler -DCUDA_ON=1 --expt-extended-lambda -c data_process.cpp -o $(OUT)-cu.o
-	nvcc -O3 -std=c++14 -x cu -Xcompiler -DCUDA_ON=1 --expt-extended-lambda -c nextdbscan.cpp -o ble-cu.o
+	nvcc -O3 -std=c++14 -x cu -Xcompiler -DCUDA_ON=1 -DMPI_ON=1 --expt-extended-lambda -c data_process.cpp -o $(OUT)-cu.o
+	nvcc -O3 -std=c++14 -x cu -Xcompiler -DCUDA_ON=1 -DMPI_ON=1 --expt-extended-lambda -c nextdbscan.cpp -o ble-cu.o
 	mpicxx -O3 -DMPI_ON=1 -DCUDA_ON=1 -DHDF5_ON=1 -lhdf5 -std=c++14 -lcudart main.cpp $(OUT)-cu.o ble-cu.o -o $(OUT)-cu-mpi
 cu-mpi-debug:
 	rm -f $(OUT)-cu.o

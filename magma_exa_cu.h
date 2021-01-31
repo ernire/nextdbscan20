@@ -219,6 +219,13 @@ namespace exa {
     }
 
     template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    __device__
+    void atomic_min(thrust::device_ptr<T> v, T val) {
+        T * ptr = thrust::raw_pointer_cast(v);
+        atomicMin(ptr, val);
+    }
+
+    template <typename T, typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
     void copy(d_vec<T> const &v_input, std::size_t const in_begin, std::size_t const in_end, d_vec<T> &v_output,
             std::size_t const out_begin) {
         thrust::copy(v_input.begin() + in_begin, v_input.begin() + in_end, v_output.begin() + out_begin);

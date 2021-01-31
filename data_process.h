@@ -12,6 +12,10 @@ static const int NO_CLUSTER = INT32_MAX;
 #ifdef CUDA_ON
 __device__
 #endif
+static const int UNASSIGNED = INT32_MAX;
+#ifdef CUDA_ON
+__device__
+#endif
 static const int NOT_PROCESSED = -2;
 static const int SKIPPED = -1;
 #ifdef CUDA_ON
@@ -49,43 +53,6 @@ private:
     std::size_t const n_coord;
     std::size_t const n_total_coord;
     float const e, e2;
-
-    static float get_lowest_e(float const e, long const n_dim) noexcept {
-        // TODO find a less wasteful formula to maintain precision
-//        return e / 2;
-//        return e / sqrtf(3);
-
-        if (n_dim <= 3) {
-            return e / sqrtf(3);
-        } else if (n_dim <= 8) {
-            return e / sqrtf(3.5);
-        } else if (n_dim <= 30) {
-            return e / sqrtf(4);
-        } else if (n_dim <= 80) {
-            return e / sqrtf(5);
-        } else {
-            return e / sqrtf(6);
-        }
-    }
-
-#ifdef CUDA_ON
-    __device__
-    inline static bool dist_leq(thrust::device_ptr<float> const coord1, thrust::device_ptr<float> const coord2, int const n_dim, float const e2) noexcept {
-        float tmp = 0;
-        for (auto d = 0; d < n_dim; d++) {
-            tmp += (coord1[d] - coord2[d]) * (coord1[d] - coord2[d]);
-        }
-        return tmp <= e2;
-    }
-#else
-    inline static bool dist_leq(float const *coord1, float const *coord2, int const n_dim, float const e2) noexcept {
-        float tmp = 0;
-        for (auto d = 0; d < n_dim; d++) {
-            tmp += (coord1[d] - coord2[d]) * (coord1[d] - coord2[d]);
-        }
-        return tmp <= e2;
-    }
-#endif
 
 public:
     d_vec<float> v_coord;
